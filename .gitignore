@@ -1,0 +1,12 @@
+query_result.txt
+build_dev.bat
+copy_vault.bat
+*.conf
+*.zip
+/data/.kobo
+*.pdb
+.vscode
+*.txt
+*.obj
+*.rdbg
+.kobo_extractor_dm.exe

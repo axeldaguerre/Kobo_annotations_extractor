@@ -1,0 +1,1 @@
+#define MemoryZeroStruct(s)   MemoryZero((s),sizeof(*(s)))
