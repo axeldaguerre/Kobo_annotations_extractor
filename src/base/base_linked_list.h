@@ -1,8 +1,13 @@
 #ifndef BASE_LINKED_LIST_H
 #define BASE_LINKED_LIST_H
 
+
 #define CheckNil(nil,p) ((p) == 0 || (p) == nil)
 #define SetNil(nil, p) ((p)=nil)
+
+#define AppendLast(first,last,next,value) (CheckNil(0, last))?\
+((first)=(value),(last)=(value)):\
+((next)=(value),(last)=(value))
 
 #define SLLPush(f,l,n) (f == 0) ?\
   (f)=(l)=(n):\

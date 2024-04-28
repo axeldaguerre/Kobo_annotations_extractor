@@ -9,4 +9,5 @@ copy_vault.bat
 *.txt
 *.obj
 *.rdbg
-.kobo_extractor_dm.exe
+*.exe
+engine.code-workspace

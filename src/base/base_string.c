@@ -515,30 +515,6 @@ str8_list_join(Arena *arena, String8List *list, StringJoin *optional_params){
 }
 
 internal String8
-str8_list_join_TO_DELETE(Arena *arena, String8List *list, String8 separator)
-{  
-  String8 result;
-  result.size = list->total_size;
-  result.str = push_array_no_zero(arena, U8, result.size + 1);
-  U8 *ptr = result.str;
-  for(String8Node *node = list->first;
-      node != 0;
-      node = node->next)
-  {
-    MemoryCopy(ptr, node->string.str, node->string.size);
-    ptr += node->string.size;
-    // TODO(Axel): use concat (avoid 2 memcopy if possible)
-    if(node->next != 0)
-    {
-      MemoryCopy(ptr, separator.str, separator.size);
-      ptr += separator.size;
-    }
-  }
-  *ptr = 0;
-  return result;
-}
-
-internal String8
 str8_range(U8 *first, U8 *one_past_last)
 {
   String8 result = {first, (U64)(one_past_last - first)};

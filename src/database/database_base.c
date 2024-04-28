@@ -64,16 +64,7 @@ database_exec_push_list(Arena *arena, String8 query, StateDB *state,
         ColumnData *column = sqlite_column_value(arena, column_idx, state, table);
         if(column->textual_type != TextType_Null)
         {
-          // TODO: MACRO or procedure (search to see others)
-          if(last_col)
-          {
-            last_col->next_sibbling = column;
-          }
-          else
-          {
-            first_col = column;
-          }
-          last_col = column;
+          AppendLast(first_col, last_col, last_col->next_sibbling, column);
         }        
       }
       entry->data = *first_col;
@@ -216,17 +207,7 @@ database_entries_to_textual(Arena *arena, EntryDataDB *entries)
       Textual *textual = push_array(arena, Textual, 1);  
       textual->text = push_str8_copy(arena, data->value);
       textual->type = data->textual_type;
-      
-      // TODO: MACRO or procedure (search to see others)      
-      if(last)
-      {
-        last->first_sub_textual = textual;
-      }
-      else
-      {
-        first = textual; 
-      }
-      last = textual;
+      AppendLast(first, last, last->first_sub_textual, textual);
     }
     
     if(entries->next_sibbling)

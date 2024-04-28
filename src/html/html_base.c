@@ -230,16 +230,7 @@ html_parse_element_paired(Arena *arena, HTMLParser *parser, HTMLTag *tag)
     HTMLElement *element = html_parse_element(arena, parser);
     if(element)
     { 
-      // TODO: MACRO or procedure (search to see others)     
-      if(last_child)
-      {
-        last_child->next_sibbling = element;
-      }
-      else
-      {
-        first_child = element;
-      }
-      last_child = element;  
+      AppendLast(first_child, last_child, last_child->next_sibbling, element);
     }
   }
   return first_child;
@@ -254,10 +245,9 @@ html_get_error_msg(Arena *arena, HTMLParser *parser, String8 file_path)
   str8_list_push(arena, &list, str8_lit("Unexpected token:"));
   str8_list_push(arena, &list, str8_lit("at byte:"));
   str8_list_push(arena, &list, str8_from_u64(arena, parser->error.at, 10, 7, 0));
-  str8_list_push(arena, &list, str8_lit("Error type:"));
+  str8_list_push(arena, &list, str8_lit("Error type:"));  
   
   HTMLError error = parser->error;
-  
   if(error.type & HTMLErrorType_unexpected_token)
   {
     str8_list_push(arena, &list, str8_lit("Unexpected token:\n"));
@@ -266,7 +256,10 @@ html_get_error_msg(Arena *arena, HTMLParser *parser, String8 file_path)
   {
     str8_list_push(arena, &list, str8_lit("Wrong enclosing type:\n"));
   }  
-  String8 result = str8_list_join_TO_DELETE(arena, &list, str8_lit("\n"));
+  StringJoin join = {0};
+  join.post = str8_lit("\n");
+  String8 result = str8_list_join(arena, &list, &join);
+  
   return result;
 }
 
@@ -297,6 +290,8 @@ html_parse(Arena *arena, OS_FileInfoList *info_list)
     HTMLElementList *el_list = push_array(arena, HTMLElementList, 1);
     HTMLElement *first_el = {0};
     HTMLElement *last_el  = {0};
+    StringJoin join = {0};
+    join.post = str8_lit("\n");
     while(html_is_parsing(&parser))
     {
       HTMLElement *el = html_parse_element(arena, &parser);
@@ -315,7 +310,7 @@ html_parse(Arena *arena, OS_FileInfoList *info_list)
     {
       html_element_list_push(arena, el_list, *first_el);
     }
-    result = str8_list_join_TO_DELETE(arena, error_messages, str8_lit("\n"));
+    result = str8_list_join(arena, error_messages, &join);
   } 
   return result;     
 }
@@ -388,16 +383,7 @@ html_get_root_doc(Arena *arena)
   {    
     HTMLTagType tag_type = types[tag_idx];
     HTMLElement *element = html_create_element_from_tag_type(arena, tag_type);
-    // TODO: MACRO or procedure (search to see others)
-    if(last_el)
-    {
-      last_el->first_sub_element = element;
-    }
-    else
-    {
-      first_el = element;
-    }
-    last_el = element;
+    AppendLast(first_el, last_el, last_el->next_sibbling, element);
   }
   return first_el;
 }
@@ -436,26 +422,12 @@ html_element_from_textual(Arena *arena, Textual *textual)
           sub_textual = sub_textual->first_sub_textual)
       {        
         HTMLElement *el = html_create_element_from_textual(arena, *sub_textual);
-        if(last_sub)
-        {
-          last_sub->next_sibbling = el; 
-        }
-        else
-        {
-          first_sub = el;
-        }
-        last_sub = el;
+        AppendLast(first_sub, last_sub, last_sub->next_sibbling, el);
       }
       
       root->next_sibbling = first_sub;
-      if(last)
-      {
-        last->next_sibbling = root; 
-      }
-      else
-      {
-        first = root;
-      }
+      AppendLast(first, last, last->next_sibbling, root);
+      // TODO: macro not usable when unrolling two lists
       last = last_sub;
     }
     result = first;

@@ -118,7 +118,6 @@ internal String8       push_str8_copy(Arena *arena, String8 string);
 internal String8       push_str8_cat(Arena *arena, String8 string, String8 cat);
 internal String8Node*  str8_list_push(Arena *arena, String8List *list, String8 str);
 internal String8       str8_list_join(Arena *arena, String8List *list, StringJoin *optional_params);
-internal String8       str8_list_join_TO_DELETE(Arena *arena, String8List *list, String8 separator);
 internal B32           str8_ends_with(String8 string, String8 end, StringMatchFlags flags);
 internal B32           str8_match(String8 a, String8 b, StringMatchFlags);
 internal String8       str8_postfix(String8 str, U64 size);
