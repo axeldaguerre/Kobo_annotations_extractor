@@ -32,6 +32,5 @@
 #define SLLStackPop_N(f,field) ((f)=(f)->field)
 #define SLLQueuePushFront(f,l,n) SLLQueuePushFront_NZ(0,f,l,n,next)
 
-#define SLLConvert(f,n,field) ((n)->field=(f), (f)=(n))
 
 #endif

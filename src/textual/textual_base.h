@@ -5,13 +5,14 @@
   typedef U32 TextType;
   enum
   {
-    TextType_Null          = (1 << 0),
+    TextType_Null          = 0,
 
-    TextType_Unmeaningfull = (1 << 1),
-    TextType_Title         = (1 << 2),
-    TextType_Heading1      = (1 << 3),
-    TextType_Heading2      = (1 << 4),
-    TextType_Heading3      = (1 << 5),
+    TextType_Unmeaningfull = (1 << 0),
+    TextType_Title         = (1 << 1),
+    TextType_Heading1      = (1 << 2),
+    TextType_Heading2      = (1 << 3),
+    TextType_Heading3      = (1 << 4),
+    TextType_Heading4      = (1 << 5),
     TextType_Paragraph     = (1 << 6),
     TextType_Link          = (1 << 7),
     TextType_Structural    = (1 << 8),
@@ -52,15 +53,15 @@ struct TextualList
 {
   TextualNode *first;
   TextualNode *last;
-  U64         node_count;
+  U64          node_count;
 };
-// TODO: Use it for file html parsing
+
 // TODO: it will not belong here
 // TODO: better naming
 typedef U32 FileFormatType;
 enum
 {
-  FileFormatType_Null  = (1 << 0),
+  FileFormatType_Null  = 0,
   FileFormatType_HTML  = (1 << 1),
   FileFormatType_TXT   = (1 << 2),
 };
@@ -70,6 +71,26 @@ struct TextualTable
 {
   Textual *textuals;
   U64       count;
+};
+
+typedef U32 TextualErrorType;
+enum
+{
+  TextualErrorType_Null           = (0),
+  TextualErrorType_Structural     = (1 << 0),
+};
+
+typedef struct TextualError TextualError;
+struct TextualError
+{  
+  TextualErrorType type;
+  String8List  *messages;
+};
+
+typedef struct TextualParser TextualParser;
+struct TextualParser
+{  
+  TextualError     error;
 };
 
 internal TextualTable*

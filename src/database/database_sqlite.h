@@ -14,7 +14,8 @@ typedef int                  (sqlite_bind_int)     (sqlite3_stmt*, int, int);
 typedef int                  (sqlite_col_count)    (sqlite3_stmt*);
 typedef int                  (sqlite_column_int)   (sqlite3_stmt*, int iCol);
 typedef const unsigned char *(sqlite_column_text)  (sqlite3_stmt*, int iCol);
-typedef const void*          (sqlite_column_text16)(sqlite3_stmt*, int iCol);
+typedef const void *         (sqlite_column_blob)  (sqlite3_stmt*, int iCol);
+typedef const void *         (sqlite_column_text16)(sqlite3_stmt*, int iCol);
 typedef double               (sqlite_column_double)(sqlite3_stmt*, int iCol);
 typedef int                  (sqlite_column_bytes) (sqlite3_stmt*, int iCol); // not used
 typedef int                  (sqlite_finalize)     (sqlite3_stmt *pStmt);
@@ -34,6 +35,7 @@ struct SQLiteAPI
   sqlite_col_count     *column_count;
   sqlite_column_int    *column_int;
   sqlite_column_text   *column_text;
+  sqlite_column_blob   *column_blob;
   sqlite_column_text16 *column_text16;
   sqlite_column_double *column_double;
   sqlite_column_bytes  *column_bytes;

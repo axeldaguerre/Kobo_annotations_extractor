@@ -1,49 +1,53 @@
 #ifndef HTML_BASE_H
 #define HTML_BASE_H
 
+#define UNIQUE_TAGS HTMLTagType_MAIN|HTMLTagType_DOCTYPE|HTMLTagType_HTML|HTMLTagType_BODY|HTMLTagType_FOOTER
+// TODO: better names
 typedef U32 RawTokenType;
 enum
 {
-  RawTokenType_null                           = (1 << 0),
+  RawTokenType_null                           = 0,
   
-  RawTokenType_dummy                          = (1 << 1),
-  RawTokenType_whitespace                     = (1 << 2),
-  RawTokenType_angle_bracket_open             = (1 << 3),
-  RawTokenType_angle_bracket_close            = (1 << 4),
-  RawTokenType_angle_bracket_open_then_slash  = (1 << 5),
-  RawTokenType_angle_slash_then_bracket_close = (1 << 6),
-  RawTokenType_slash                          = (1 << 7),
-  
-  RawTokenType_Error                          = (1 << 30),
+  RawTokenType_whitespace                     = (1 << 0),
+  RawTokenType_angle_bracket_open             = (1 << 1),
+  RawTokenType_angle_bracket_close            = (1 << 2),
+  RawTokenType_angle_bracket_open_then_slash  = (1 << 3),
+  RawTokenType_angle_slash_then_bracket_close = (1 << 4),
+  RawTokenType_slash                          = (1 << 5),
 };
-
-#define FIRST_TOKEN_TAG_FLAGS (RawTokenType_angle_bracket_open | RawTokenType_angle_bracket_open_then_slash)
-#define LAST_TOKEN_TAG_FLAGS (RawTokenType_angle_slash_then_bracket_close | RawTokenType_angle_bracket_close)
 
 typedef struct HTMLToken HTMLToken;
 struct HTMLToken
 {
   RawTokenType type;
-  String8      string;
+  Rng1U64      range;
 };
 
 typedef struct HTMLTag HTMLTag;
 struct HTMLTag
 {  
-  HTMLTagType          type;
+  /*
+    TODO: Get rid of the text_type, user should be able to define them. HTML spec is very 
+          dense and hard to code on tag meaning, some tags have different meaning and are 
+          sometimes obscure. 
+  */
+  U64                  type;
   HTMLTagEnclosingType enclosing_type;
+  HTMLToken            first_token;
+  HTMLToken            last_token;
   String8              tag_name;
   TextType             text_types;
-  Rng1U64              range[2];
 };
 
 typedef struct HTMLElement HTMLElement;
 struct HTMLElement
 {
+  
   HTMLElement *first_sub_element;
   HTMLElement *next_sibbling;
-  HTMLTag      tag;
+  HTMLTag     *tags[2];
   String8      content;
+  U8           level_deep;
 };
 
 typedef struct HTMLElementNode HTMLElementNode;
@@ -61,38 +65,34 @@ struct HTMLElementList
   U64              node_count;
 };
 
-typedef struct HTMLElementArray HTMLElementArray;
-struct HTMLElementArray
-{
-  HTMLElement *v;
-  U64 count;
-};
-
 typedef U32 HTMLErrorType;
 enum
 {
   HTMLErrorType_Null                 = (0),
   
-  HTMLErrorType_unexpected_token     = (0 << 1),
-  HTMLErrorType_wrong_enclosing_type = (1 << 1),
+  HTMLErrorType_unexpected_token     = (1 << 1),
+  HTMLErrorType_wrong_enclosing_type = (2 << 1),
 };
 
 
 typedef struct HTMLError HTMLError;
 struct HTMLError
 {
+  // TODO: Thanks to the messages push, we should may be able to delete others
   HTMLErrorType type;
-  U64           at;
+  String8List  *messages;
+  U64 at;
 };
 
 typedef struct HTMLParser HTMLParser;
 struct HTMLParser
 {
-  String8   string;
-  HTMLError error;
-  U8        level_deep;
-  U8        space_by_indent;
-  U64       at;
+  String8       string;
+  U64           skip_until_tag_type;
+  HTMLError     error;
+  U8            level_deep;
+  U8            space_by_indent;
+  U64           at;
 };
 
 typedef struct ReadingContent ReadingContent;

@@ -3,23 +3,12 @@
   TODO: should not be here, but because of C/C++ compiler ...
         Solution: pulling entry iteration from sqlite into base should fix it
 */
-internal EntryDataDBNode*
-database_entry_list_push(Arena *arena, EntryDataDBList *list, EntryDataDB *entry)
-{ 
-  EntryDataDBNode *node = push_array(arena, EntryDataDBNode, 1);
-  MemoryCopyStruct(&node->entry, entry);
-  node->entry.data.value = push_str8_copy(arena, entry->data.value);
-  node->entry.data.name = push_str8_copy(arena, entry->data.name);
-  SLLQueuePush(list->first, list->last, node);
-  list->node_count += 1;  
-  return node;
-}
 
-internal EntryDataDBNode*
-database_entry_list_push_node(Arena *arena, EntryDataDBList *list, EntryDataDBNode *entry)
+internal ColumnDataDBNode*
+database_entry_list_push(Arena *arena, ColumnDataDBList *list, ColumnDataDB *entry)
 { 
-  EntryDataDBNode *node = push_array(arena, EntryDataDBNode, 1);
-  MemoryCopyStruct(&node->entry, entry);
+  ColumnDataDBNode *node = push_array(arena, ColumnDataDBNode, 1);
+  node->entry.col_name = push_str8_copy(arena, entry->col_name);
   SLLQueuePush(list->first, list->last, node);
   list->node_count += 1;  
   return node;
@@ -76,17 +65,20 @@ sqlite_init(Arena *arena, String8 lib_path, String8 db_path, StateDB *state)
   api.column_count        = (sqlite_col_count *)    os_library_load_proc(arena, state->lib, str8_lit("sqlite3_column_count"));  
   api.column_int          = (sqlite_column_int *)   os_library_load_proc(arena, state->lib, str8_lit("sqlite3_column_int"));
   api.column_text         = (sqlite_column_text *)  os_library_load_proc(arena, state->lib, str8_lit("sqlite3_column_text"));
+  api.column_blob         = (sqlite_column_blob *)  os_library_load_proc(arena, state->lib, str8_lit("sqlite3_column_blob"));
   api.column_text16       = (sqlite_column_text16 *)os_library_load_proc(arena, state->lib, str8_lit("sqlite3_column_text16"));
   api.column_double       = (sqlite_column_double *)os_library_load_proc(arena, state->lib, str8_lit("sqlite3_column_double"));
   api.column_bytes        = (sqlite_column_bytes *) os_library_load_proc(arena, state->lib, str8_lit("sqlite3_column_bytes"));
+  api.column_blob         = (sqlite_column_blob *) os_library_load_proc(arena, state->lib, str8_lit("sqlite3_column_bytes"));
   api.finalize_statement  = (sqlite_finalize *)     os_library_load_proc(arena, state->lib, str8_lit("sqlite3_finalize"));
   api.col_name            = (sqlite_col_name *)     os_library_load_proc(arena, state->lib, str8_lit("sqlite3_column_name"));
   
   if(!api.close_db || !api.open_db || !api.exec_query || 
-      !api.prepare_query || !api.step_query || !api.column_type ||
-      !api.column_value || !api.bind_int || !api.column_count ||
-      !api.column_int || !api.column_text || !api.column_text16 ||
-      !api.column_double || !api.column_bytes || !api.finalize_statement)
+     !api.prepare_query || !api.step_query || !api.column_type ||
+     !api.column_value || !api.bind_int || !api.column_count ||
+     !api.column_int || !api.column_text || !api.column_blob||
+     !api.column_text16 || !api.column_double || !api.column_bytes || 
+     !api.finalize_statement)
   {
     state->errors = DBError_Library;
     printf("Error: sqlite library. Some exported methods was not found.");
@@ -153,55 +145,66 @@ sqlite_step_query(StateDB *state)
   return result;
 }
 
-internal ColumnData*
+internal RawData *
 sqlite_column_value(Arena *arena, int column_idx, StateDB *state, 
-                    TextualTable *column_meaning_table) 
+                    ColumRawMeaningTable *meaning_table, 
+                    DBRawDataTransformers *transformers)
 {
-  ColumnData *result = push_array(arena, ColumnData, 1);
+  RawData *result = push_array(arena, RawData, 1);
   SQLiteState *sqlite_state = (SQLiteState *)state->memory;
   
-  int colType          = sqlite_state->api.column_type(sqlite_state->statement, column_idx);
-  result->name         = push_str8_copy(arena, sqlite_get_column_name(state, column_idx));
-  result->textual_type = textual_type_from_name(result->name, column_meaning_table);
-  
-  if(result->textual_type == TextType_Null) return result;
+  ColumnDataDB col = {0};
+  int colType      = sqlite_state->api.column_type(sqlite_state->statement, column_idx);
+  col.col_name     = push_str8_copy(arena, sqlite_get_column_name(state, column_idx));
+  col.raw.meaning  = database_raw_meaning_from_col_name(col.col_name, meaning_table);
   
   switch(colType) 
   {
     case SQLITE_INTEGER:
     {
-      result->type = ColumnType_Text;
-      int value = sqlite_state->api.column_int(sqlite_state->statement, column_idx);
-      result->value.str = push_array(arena, U8, 10); 
-      stbsp_sprintf((char *)result->value.str, "%d", value);
+      col.type = ColumnType_Text;
+      sqlite_state->api.column_int(sqlite_state->statement, column_idx);
+      col.raw.buffer.data = data;
+      col.raw.buffer.size = 32/8;
+      col.raw.type = RawDataType_int;
+      col.raw.transformer = transformers->transformer_int;
     } break;
 
     case SQLITE_FLOAT:
     {
-      result->type = ColumnType_Float;
-      F64 value = (F64)sqlite_state->api.column_int(sqlite_state->statement, column_idx);
-      result->value.str = push_array(arena, U8, 20); 
-      stbsp_sprintf((char *)result->value.str, "%f", value);
+      col.type = ColumnType_Float;
+      F64 data = sqlite_state->api.column_int(sqlite_state->statement, column_idx);
+      col.raw.buffer.data = (F64*)&data;
+      col.raw.buffer.size = 64/8;
+      col.raw.type = RawDataType_float;
+      col.raw.transformer = transformers->transformer_float;
     } break;
 
     case SQLITE_TEXT:
     {
-      result->type = ColumnType_Text;
-      const unsigned char *value = sqlite_state->api.column_text(sqlite_state->statement, column_idx);
-      result->value = push_str8_copy(arena, str8_cstring((char *)value)); 
+      col.type = ColumnType_Text;
+      U8 *data = (U8*)sqlite_state->api.column_text(sqlite_state->statement, column_idx);
+      
+      col.raw.buffer.data = (void*)&str8(data, cstr8_length(data));
+      col.raw.buffer.size = sqlite_state->api.sqlite_column_bytes(sqlite_state->statement, column_idx);
+      col.raw.type = RawDataType_string;
+      // col.raw.transformer = &transformers->raw_default_string_transformer;
     } break;  
     
     case SQLITE_NULL:
     {
-      result->type = TextType_Unmeaningfull;
+      col.type = TextType_Unmeaningfull;
     } break;
     
     case SQLITE_BLOB:
     {
-      result->type = ColumnType_Blob;
+      col.type = ColumnType_Blob;
+      col.raw.buffer.data = sqlite_state->api.column_blob(sqlite_state->statement, column_idx);
+      col.raw.buffer.size = sqlite_state->api.sqlite_column_bytes(sqlite_state->statement, column_idx);
+      //TODO: transformer
     } break;
   }
-  AssertAlways(result->type);
+  
   return result;
 }
 

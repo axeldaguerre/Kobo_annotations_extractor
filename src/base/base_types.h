@@ -46,6 +46,13 @@ global const U32 bitmask5  = 0x0000001F;
 global const U32 bitmask6  = 0x0000003F;
 global const U32 bitmask10 = 0x0000003FF;
 
+/* TODO: Faster ?
+  #define RtlEqualMemory(Destination,Source,Length) (!memcmp((Destination),(Source),(Length)))
+  #define RtlMoveMemory(Destination,Source,Length) memmove((Destination),(Source),(Length))
+  #define RtlCopyMemory(Destination,Source,Length) memcpy((Destination),(Source),(Length))
+  #define RtlFillMemory(Destination,Length,Fill) memset((Destination),(Fill),(Length))
+  #define RtlZeroMemory(Destination,Length) memset((Destination),0,(Length))
+*/
 #define MemoryCopy(dst, src, size)    memmove((dst), (src), (size))
 #define MemoryZero(s,z) memset((s),0,(z))
 #define MemoryCopyStruct(d,s)  MemoryCopy((d),(s),sizeof(*(d)))

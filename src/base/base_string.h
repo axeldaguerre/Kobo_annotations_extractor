@@ -104,39 +104,46 @@ internal U8            char_to_upper(U8 c);
 internal U8            char_to_lower(U8 c);
 internal U8            char_to_correct_slash(U8 c);
 
+internal B32           str8_ends_with(String8 string, String8 end, StringMatchFlags flags);
+internal B32           str8_match(String8 a, String8 b, StringMatchFlags);
+
 internal String16      str16(U16 *str, U64 size);
 internal U64           cstr16_length(U16 *str);
 internal String16      str16_cstring(U16 *str);
 internal String16      str16_from_str8(Arena *arena, String8 str);
-
 internal String8       str8(U8 *str, U64 size);
 internal String8       str8_cstring(char *c);
+
 internal U64           cstr8_length(U8 *str);
+
 internal String8       str8_from_16(Arena *arena, String16 str);
 internal U32           utf8_encode(U8 *str, U32 codepoint);
+
 internal String8       push_str8_copy(Arena *arena, String8 string);
 internal String8       push_str8_cat(Arena *arena, String8 string, String8 cat);
+
 internal String8Node*  str8_list_push(Arena *arena, String8List *list, String8 str);
 internal String8       str8_list_join(Arena *arena, String8List *list, StringJoin *optional_params);
-internal B32           str8_ends_with(String8 string, String8 end, StringMatchFlags flags);
-internal B32           str8_match(String8 a, String8 b, StringMatchFlags);
+
 internal String8       str8_postfix(String8 str, U64 size);
 internal String8       str8_from_16(Arena *arena, String16 utf16);
 internal String8       str8_chop_last_slash(String8 str);
-internal String8       push_str8_cat(Arena *arena, String8 a, String8 b);
+
 internal String8List   str8_split(Arena *arena, String8 string, U8 *split_chars, U64 split_char_count, StringSplitFlags flags);
-internal void          str8_split_list_push(Arena *arena, String8List *list, U8 *split_chars, U64 split_chars_count, String8 string, StringSplitFlags flags);
 internal String8List   str8_split_path(Arena *arena, String8 string);
 internal String8List   str8_split_by_string_chars(Arena *arena, String8 string, String8 split_chars, StringSplitFlags flags);
+
 internal String8       str8_range(U8 *first, U8 *one_past_last);
 internal String8       str8_cut_from_last_dot(String8 string);
 internal U64           str8_find_needle(String8 string, U64 start_pos, String8 needle, StringMatchFlags flags);
 internal String8       str8_chop_last_dot(String8 string);
 internal String8       str8_prefix(String8 str, U64 size);
+
 internal String8       cstyle_hex_from_u64(Arena *arena, U64 x, B32 caps);
 internal S64           sign_from_str8(String8 string, String8 *string_tail);
 internal S64           s64_from_str8(String8 string, U32 radix);
 internal F64           f64_from_str8(String8 string);
+
 internal U64           cstring8_length(U8 *c);
 internal String8       str8_skip_chop_whitespace(String8 string);
 internal String8       str8_substr(String8 str, Rng1U64 range);

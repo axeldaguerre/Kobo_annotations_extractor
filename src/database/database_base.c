@@ -1,3 +1,14 @@
+/*
+  TODO: get rid of them
+*/
+internal B32       sqlite_init(Arena *arena, String8 lib_path, String8 db_path, StateDB *state);
+internal B32       sqlite_close_db(StateDB *state);
+internal B32       sqlite_prepare_query(String8 query, StateDB *state);
+internal U8        sqlite_column_count(StateDB *state);
+internal StepFlags sqlite_step_query(StateDB *state);
+internal RawData*  sqlite_column_value(Arena *arena, int column_idx, StateDB *state,  ColumRawMeaningTable *meaning_table, DBRawDataTransformers *transformers);
+internal B32       sqlite_finalize_statement(StateDB *state);
+
 internal StateDB*
 database_init(Arena *arena, TypeDB type, String8 lib_path, String8 db_path)
 {
@@ -28,8 +39,9 @@ database_close(StateDB *state)
 }
 
 internal void
-database_exec_push_list(Arena *arena, String8 query, StateDB *state, 
-                        TextualTable *table, EntryDataDBList *out)
+database_exec_push_raw_list(Arena *arena, String8 query, StateDB *state, 
+                            RawDataList *out, ColumRawMeaningTable *col_meanings,
+                            DBRawDataTransformers *transformers)
 {
   if(state->db_type == TypeDB_SQLITE)
   {
@@ -39,13 +51,12 @@ database_exec_push_list(Arena *arena, String8 query, StateDB *state,
       return;
     };
     int column_count = sqlite_column_count(state);
-    
-    // TODO: better looping, a while or do while. 
-    //       currently first step_flags == StepFlag_Null
+        
     for(int step_flag = StepFlag_Null;
         step_flag != StepFlag_Done;
         step_flag = sqlite_step_query(state)) 
     {
+      
       if(step_flag == StepFlag_Error) 
       {
         state->errors = DBError_Query;
@@ -56,20 +67,18 @@ database_exec_push_list(Arena *arena, String8 query, StateDB *state,
         continue;
       }
       
-      EntryDataDB *entry     = push_array(arena, EntryDataDB, 1);
-      ColumnData  *first_col = {0};
-      ColumnData  *last_col  = {0};
+      RawData raw = {0};
+      RawData *first = {0};
+      RawData *last = {0};
       for(U8 column_idx = 0; column_idx <= column_count-1; ++column_idx)
       {
-        ColumnData *column = sqlite_column_value(arena, column_idx, state, table);
-        if(column->textual_type != TextType_Null)
-        {
-          AppendLast(first_col, last_col, last_col->next_sibbling, column);
-        }        
+        RawData *raw_chunk = sqlite_column_value(arena, column_idx, state, col_meanings, transformers);
+        AppendLast(first, last, last->next, raw_chunk);
       }
-      entry->data = *first_col;
-      database_entry_list_push(arena, out, entry);
+      
+      raw_data_list_push(arena, out, *first);
     }
+    
     if(!sqlite_finalize_statement(state))
     {
       state->errors = DBError_Query;
@@ -80,142 +89,37 @@ database_exec_push_list(Arena *arena, String8 query, StateDB *state,
 internal void
 database_print_error(StateDB *state)
 {
-  if(!state->errors & DBError_Null)
+  if(!(state->errors & DBError_Null))
   {
     printf("DB Error(s): \n");
   } 
-  if((!state->errors & DBError_Query))
+  if(!(state->errors & DBError_Query))
   {
     printf("Query failed\n" );
   }
-  if((!state->errors & DBError_Connexion))
+  if(!(state->errors & DBError_Connexion))
   {
     printf("Connexion failed\n" );
   }
-  if((!state->errors & DBError_Library))
+  if(!(state->errors & DBError_Library))
   {
     printf("Can't find Database DLL \n");
   }
 }
 
-internal void
-database_append_node(Arena *arena, TextualList *list, TextualNode *in)
+internal RawMeaning
+database_raw_meaning_from_col_name(String8 col_name, ColumRawMeaningTable *table)
 {
-  B32 match = 0;
-  // AssertAlways(in->textual.type == TextType_Title);
-  for(TextualNode *node = list->first; 
-      node != 0; 
-      node = node->next)
-  {
-    // AssertAlways(node->textual.type == TextType_Title);
-    if(str8_match(node->textual.text, in->textual.text, 0))
-    {
-      node->next = in;
-      match = 1;
-      break;
-    }
-  }
-  if(!match)
-  {
-    list->last = in;
-  }
-}
-
-
-internal EntryDataDBNode *
-database_try_retrieve_entry_node(EntryDataDBList *list, ColumnData data)
-{
-  EntryDataDBNode *result = {0};
-  for(EntryDataDBNode *node = list->first; 
-      node != 0; 
-      node = node->next)
-  { 
-    for(ColumnData *col = &node->entry.data;
-        col != 0; 
-        col = col->next_sibbling)
-    {
-      if(str8_match(col->name, data.name, StringMatchFlag_CaseInsensitive) &&
-        str8_match(col->value, data.value, StringMatchFlag_CaseInsensitive))
-      {
-        result = node;        
-        break;
-      }
-    }
-    if(result)
-    {
-      break;
-    }
-  }
-  return result;
-}
+  RawMeaning raw_meaning = {0};
   
-internal EntryDataDBList *
-database_entries_group_by(Arena *arena, EntryDataDBList *list, ColumnData by)
-{
-  EntryDataDBList *result = push_array(arena, EntryDataDBList, 1);
-  
-  for(EntryDataDBNode *node = list->first; 
-      node != 0; 
-      node = node->next)
+  for(U64 idx = 0; table->count; ++idx)
   {
-    for(ColumnData *data = &node->entry.data;
-        data != 0; 
-        data = data->next_sibbling)
+    ColumRawMeaning *col_raw_meaning = &table->col_meanings[idx];
+    if(str8_match(col_name, col_raw_meaning->col_name, StringMatchFlag_CaseInsensitive))
     {
-      if(str8_match(data->name, by.name, StringMatchFlag_CaseInsensitive))
-      {
-        EntryDataDBNode *existing_node = database_try_retrieve_entry_node(result, *data);
-        if(existing_node)
-        {
-          for(EntryDataDB *entry = &existing_node->entry; 
-              entry !=0; 
-              entry = entry->next_sibbling)
-          {
-            if(!entry->next_sibbling)
-            {
-              entry->next_sibbling = &node->entry;
-              break;
-            }
-          }
-        }
-        else if(!existing_node && str8_match(by.name, data->name, StringMatchFlag_CaseInsensitive))
-        {
-          database_entry_list_push(arena, result, &node->entry);
-        }
-      }
+      raw_meaning = col_raw_meaning->meaning;
     }
   }
-  return result;
-}
-internal Textual *
-database_entries_to_textual(Arena *arena, EntryDataDB *entries)
-{
-  Textual *result = push_array(arena, Textual, 1);  
-  /*
-    TODO: pointer is not null when there is no data left, we seems to set it somewhere in the 
-          code even when the entry is null
-  */
-  if(entries->data.type != ColumnType_Null)
-  { 
-    Textual *first = {0};  
-    Textual *last = {0};
-    
-    for(ColumnData *data = &entries->data; 
-        data != 0; 
-        data = data->next_sibbling)
-    {      
-      Textual *textual = push_array(arena, Textual, 1);  
-      textual->text = push_str8_copy(arena, data->value);
-      textual->type = data->textual_type;
-      AppendLast(first, last, last->first_sub_textual, textual);
-    }
-    
-    if(entries->next_sibbling)
-    {
-      first->next_sibbling = database_entries_to_textual(arena, entries->next_sibbling);
-    }
-    result = first;
-  }  
   
-  return result;
+  return raw_meaning;
 }

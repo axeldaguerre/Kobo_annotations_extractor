@@ -106,12 +106,13 @@ os_file_read(OS_Handle file, Rng1U64 rng, void *out_data)
         // TODO(Axel): implement asyncronous (overlapped)
         DWORD bytes_read = 0;
         BOOL SUCCESS = ReadFile(w32_handle, (U8*)(out_data) + total_read_size, (DWORD)amount_32, &bytes_read, 0);
-        if(SUCCESS ==0) break;
+        if(SUCCESS == 0) break;
         total_read_size += bytes_read;
     }
 
     return total_read_size;
 }
+
 
 internal OS_FileIter*
 os_file_iter_begin(Arena *arena, String8 query, OS_FileIterFlags flags)
