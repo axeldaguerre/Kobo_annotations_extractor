@@ -3,6 +3,7 @@
 This is a program permitting to extract your Kobo's annotations.
 You can extract them has html or text.
 
+
 ## How to use
 
 Using the `exe` from `build` folder or by running the `build.bat` from your computer:
@@ -12,6 +13,11 @@ Using the `exe` from `build` folder or by running the `build.bat` from your comp
 `"full"` is for the maximum column values, if you don't set it it will do the light version
 
 If you don't add any parameter, it will print a message a small helper 
+
+## Build the exe
+
+You will have to run the `build.bat` but you need msvc from Visual Studio or by using the https://github.com/Data-Oriented-House/PortableBuildTools (recommended).
+If you want to use MSVC from Visual Studio, you will need to start from the native cmd or using the `shell.bat` from this repository, tweak the path from yours inside it.
 
 ## Tested
 
