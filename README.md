@@ -15,6 +15,8 @@ If you don't add any parameter, it will print a message a small helper
 
 It was tested only for Kobo Libra 2. But Any Kobo should works just fine.
 
+In fact if a program is using `SQLite` as its annotation saving, you will be able to tweak the tool quite easily, you will have to change the column name though (using a tool like DB Browser for Sqlite). 
+
 
 ## Highly influenced
 This is influenced by https://github.com/EpicGamesExt/raddebugger. Currently a significant portion of the code is from this very well written source code.
