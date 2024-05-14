@@ -127,7 +127,8 @@ os_file_iter_begin(Arena *arena, String8 query, OS_FileIterFlags flags)
 }
 
 internal B32
-os_file_iter_next(Arena *arena, OS_FileIter *iter, OS_FileInfo *out_info)
+os_file_iter_next(Arena *arena, OS_FileIter *iter, 
+                  OS_FileInfo *out_info)
 {
     B32 result = 0;
     W32_FileIter *w32_iter = (W32_FileIter*)iter->memory;

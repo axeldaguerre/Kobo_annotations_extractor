@@ -1,8 +1,9 @@
 internal HTMLElementNode*
 html_element_list_push(Arena *arena, HTMLElementList *list, HTMLElement element)
 {
+  // TODO: it will fail, as we never save anything, without talking about children nodes ...
   HTMLElementNode *node = push_array_no_zero(arena, HTMLElementNode, 1);
-  SLLPush(list->first, list->last, node);
+  SLLQueuePush_NZ(&html_el_n_g_nil, list->first, list->last, node, next);
   node->element = element;
   ++list->node_count;
   
@@ -10,32 +11,18 @@ html_element_list_push(Arena *arena, HTMLElementList *list, HTMLElement element)
 }
 
 internal HTMLTag *
-html_create_tag(Arena *arena, HTMLTagInvariant *inv)
+html_tag_from_inv(Arena *arena, HTMLTagInvariant *inv)
 {
   HTMLTag *result = push_array(arena, HTMLTag, 1);
-  result->type = inv->type;
-  result->enclosing_type = inv->enclosing_type;
-  result->tag_name = inv->tag_name;
-  result->text_types = inv->text_types;
-  
-  return result;
-}
-
-internal HTMLTag  *
-html_create_tag_from_tag_type(Arena *arena, U64 type)
-{
-  HTMLTag *result = push_array(arena, HTMLTag, 1);
-  HTMLTagTable table = html_get_tag_table();
-  for(U32 idx = 0; idx < table.tag_count; ++idx)
+  if(inv)
   {
-    HTMLTagInvariant *invariant = &table.tags[idx];
-    if(type == invariant->type)
-    {
-      result = html_create_tag(arena, invariant);
-      break;
-    }
+    result->tag = inv->tag;
+    result->tag_type = inv->tag_type;
+    result->enclosing_type = inv->enclosing_type;
+    result->tag_name = inv->tag_name;
+    result->meaning = inv->meaning;
   }
-  
+    
   return result;
 }
 
@@ -106,60 +93,27 @@ html_tag_is_opening(HTMLTag *tag)
 }
 
 internal void
-html_analyse_element(HTMLParser *parser, HTMLElement *el)
+html_analyse_element(HTMLParser *parser, HTMLElementNode *el)
 {
   HTMLErrorType errors = HTMLErrorType_Null;  
-  if (!html_tag_is_opening(el->tags[0]))
-  {
-    parser->error.type |= HTMLErrorType_wrong_enclosing_type;
-  }
-  
-  if(!el->tags[1] && el->tags[0]->enclosing_type == HTMLTagEnclosingType_Paired)
-  {
-    errors |= HTMLErrorType_wrong_enclosing_type;
-  }
-  
-  else if(el->tags[1] && el->tags[0]->enclosing_type == HTMLTagEnclosingType_Paired && 
-     el->tags[1]->type != el->tags[0]->type)
-  {
-    errors |= HTMLErrorType_wrong_enclosing_type;
-  }
-  
+  // if (!html_tag_is_opening(el->tags[0]))
+  // {
+  //   parser->error.type |= HTMLErrorType_wrong_enclosing_type;
+  // }
+  // 
+  // if(!el->tags[1] && el->tags[0]->enclosing_type == HTMLTagEnclosingType_Paired)
+  // {
+  //   errors |= HTMLErrorType_wrong_enclosing_type;
+  // }
+  // 
+  // else if(el->tags[1] && el->tags[0]->enclosing_type == HTMLTagEnclosingType_Paired && 
+  //    el->tags[1]->tag != el->tags[0]->tag)
+  // {
+  //   errors |= HTMLErrorType_wrong_enclosing_type;
+  // }
+  // 
   parser->error.type |= errors;
   // parser->error.at = el->tags[0]->first_token.range.min;
-}
-
-internal void
-html_analyse_parse_for_error(Arena *arena, HTMLParser *parser, HTMLTag tag)
-{
-  // TODO: push messages will not work because of the way we initialize the parser
-  // TODO: check the enclosing type  
-
-  HTMLErrorType type = 0;  
-  RawTokenType first_token_flags = RawTokenType_angle_bracket_open|RawTokenType_angle_bracket_open_then_slash;
-  RawTokenType last_token_flags = RawTokenType_angle_slash_then_bracket_close|RawTokenType_angle_bracket_close;
-  
-  if(tag.type == HTMLTagType_NULL)
-  {
-    // str8_list_push(arena, parser->error.messages, str8_lit("couldn't parse tag"));
-    type |= HTMLErrorType_unexpected_token;
-    
-  }
-  
-  if(!(tag.first_token.type & first_token_flags))
-  {
-    // str8_list_push(arena, parser->error.messages, str8_lit("wrong matching tag"));
-    type |= HTMLErrorType_unexpected_token;
-    
-  } 
-  
-  if(!(tag.last_token.type & last_token_flags))
-  {
-    // str8_list_push(arena, parser->error.messages, str8_lit("wrong matching tag"));
-    type |= HTMLErrorType_unexpected_token;
-    
-  }  
-  parser->error.type = type;
 }
 
 internal B32
@@ -239,7 +193,7 @@ html_get_invariant_from_tag_name(Arena *arena, String8 tag_name)
     String8 split = str8_lit(" \t\r\n");
     String8List find_tag = str8_split_by_string_chars(arena, tag_name, split, StringSplitFlag_KeepEmpties);
     
-    HTMLTagTable table = html_get_tag_table();
+    HTMLTagInvariantTable table = html_get_tag_table();
     if(find_tag.total_size)
     {
       String8 string = find_tag.first->string;    
@@ -288,121 +242,95 @@ html_next_token(HTMLParser *parser)
   return result;
 }
 
-typedef struct Raw Raw;
-struct Raw
-{
-  String8        str;
-  FileFormatType file_type;
-};
-
-internal HTMLTag *
-html_pull_tag_info_from_inv(Arena *arena, HTMLParser *parser)
-{
-  HTMLTag *result = push_array_no_zero(arena, HTMLTag, 1);
-  HTMLToken first_token = html_next_token(parser);
-  HTMLToken last_token = html_next_token(parser);
-  
-  U64 end_byte = ClampTop(parser->string.size, last_token.range.min);
-  U64 start_byte = ClampTop(end_byte, first_token.range.max);
-  String8 tag_name = str8((parser->string.str + start_byte), end_byte-start_byte);
-  
-  HTMLTagInvariant *invariant = html_get_invariant_from_tag_name(arena, tag_name);
-  if(invariant)
-  {    
-    result->type = invariant->type;
-    result->enclosing_type = invariant->enclosing_type;
-    result->tag_name = invariant->tag_name;
-    result->text_types = invariant->text_types;
-  }
-  result->first_token = first_token;
-  result->last_token = last_token;
-  
-  return result;
-}
-
 internal HTMLTag *
 html_next_tag(Arena *arena, HTMLParser *parser)
 {
-  HTMLTag *result = {0};
+  HTMLTag *tag = push_array_no_zero(arena, HTMLTag, 1);
   
   for(;;)
   {
-    result = html_pull_tag_info_from_inv(arena, parser);
+    tag->first_token = html_next_token(parser);
+    tag->last_token = html_next_token(parser);
+  
+    U64 str_end = ClampTop(parser->string.size, tag->last_token.range.min);
+    U64 str_start = ClampTop(str_end, tag->first_token.range.max);
+    String8 tag_name = str8((parser->string.str + str_start), str_end-str_start);
+    tag = html_tag_from_inv(arena, html_get_invariant_from_tag_name(arena, tag_name));
     
-    if(result && parser->skip_until_tag_type == HTMLTagType_NULL) break;
+    if(tag && parser->skip_until_tag == HTMLTag_NULL) break;
     // NOTE: pre & code can have html meaningfull tokens, but are dummy
-    else if(result->type == parser->skip_until_tag_type) break;
+    else if(tag->tag == parser->skip_until_tag) break;
     // NOTE: first tag was dummy, but last tag could have been part of a meaningfull one
-    parser->at = result->first_token.range.max;
+    parser->at = tag->first_token.range.max;
   }
   
-  if((result->type & HTMLTagType_PRE) || (result->type & HTMLTagType_CODE))
+  if((tag->tag & HTMLTag_PRE) || (tag->tag & HTMLTag_CODE))
   {
-    if(html_tag_is_opening(result))
+    if(html_tag_is_opening(tag))
     {
-      parser->skip_until_tag_type = result->type;
+      parser->skip_until_tag = tag->tag;
     }
     else
     {
-      parser->skip_until_tag_type &= ~result->type;
+      parser->skip_until_tag &= ~tag->tag;
     }
   }
   
-  return result;
+  return tag;
 }
 
-internal HTMLElement *
+internal HTMLElementNode *
 html_parse_element(Arena *arena, HTMLParser *parser, HTMLTag *from_tag)
 {
-  HTMLElement *result = push_array(arena, HTMLElement, 1);  
-  result->level_deep = ++parser->level_deep;
+  HTMLElementNode *root_n = push_array(arena, HTMLElementNode, 1);  
+  root_n->element.level_deep = ++parser->level_deep;
 
   if(from_tag)
   {
-    result->tags[0] = from_tag;
+    root_n->element.tags[0] = from_tag;
   }
   else
   {
-    result->tags[0] = html_next_tag(arena, parser);
+    root_n->element.tags[0] = html_next_tag(arena, parser);
   }
 
-  if(result->tags[0]->enclosing_type == HTMLTagEnclosingType_Paired)
+  if(root_n->element.tags[0]->enclosing_type == HTMLTagEnclosingType_Paired)
   {
-    HTMLElement *last  = {0};
-    HTMLElement *first = {0};
-    HTMLTag     *tag   = {0};
-    
+    HTMLTag *tag   = {0};
     for(;;)
     {
       tag = html_next_tag(arena, parser);
 
-      if(!html_is_parsing(parser) || !html_tag_is_opening(tag) &&
-          tag->type == result->tags[0]->type)
+      if(!html_is_parsing(parser) || 
+         (!html_tag_is_opening(tag) && tag->tag == root_n->element.tags[0]->tag))
       {
-        result->tags[1] = tag;        
+        root_n->element.tags[1] = tag;
         break;
       }
       
-      if(result && tag->type != result->tags[0]->type && !html_tag_is_opening(tag)) 
+      if(tag->tag != root_n->element.tags[0]->tag && 
+         !html_tag_is_opening(tag)) 
       {
         html_parser_set_error(arena, parser, tag->first_token.range.min,
                               HTMLErrorType_unexpected_token, 
                               str8_lit("From opening tag, finding a closing tag from different type is not allowed"));
         break;
       }
-      
-      HTMLElement *el = html_parse_element(arena, parser, tag);
-      AppendLast(first, last, last->next_sibbling, el);
+      HTMLElementNode *el_node = html_parse_element(arena, parser, tag);
+      DLLPushBack_NPZ(&html_el_n_g_nil, 
+                      root_n->first, root_n->last, 
+                      el_node, next, prev);
     }
-    result->first_sub_element = first;
-    result->content.str = parser->string.str + result->tags[0]->last_token.range.max;
-    result->content.size = result->tags[1]->first_token.range.min - result->tags[0]->last_token.range.max;
+    
+    root_n->element.raw.data.str = parser->string.str + root_n->element.tags[0]->last_token.range.max;
+    root_n->element.raw.data.size = root_n->element.tags[1]->first_token.range.min - root_n->element.tags[0]->last_token.range.max;
+    root_n->element.raw.meaning = root_n->element.tags[1]->meaning;
   }
   
-  html_analyse_element(parser, result);
+  html_analyse_element(parser, root_n);
   --parser->level_deep;
   
-  return result;
+  return root_n;
 }
 
 internal String8
@@ -453,15 +381,13 @@ html_parse(Arena *arena, OS_FileInfoList *info_list)
     U64 size = os_file_read(handle, rng_1u64(0, size_file), memory);
     HTMLParser *parser = html_init_parser(arena, str8(memory, size));
     
-    HTMLElementList *el_list = push_array(arena, HTMLElementList, 1);
-    HTMLElement *first = {0};
-    HTMLElement *last  = {0};
     StringJoin join = {0};
     join.post = str8_lit("\n");
+    HTMLElementNode *root_n = push_array(arena, HTMLElementNode, 1);
     while(html_is_parsing(parser))
     {
-      HTMLElement *element = html_parse_element(arena, parser, 0);
-      AppendLast(first, last, last->next_sibbling, element);
+      HTMLElementNode *el_n = html_parse_element(arena, parser, 0);
+      DLLPushBack_NPZ(&html_el_n_g_nil, root_n->first, root_n->last, el_n, next, prev);
       
       if(parser->error.type != HTMLErrorType_Null)
       {
@@ -469,56 +395,24 @@ html_parse(Arena *arena, OS_FileInfoList *info_list)
         str8_list_push(arena, error_messages, error_msg);
       } 
     }
-    if(first)
-    {
-      html_element_list_push(arena, el_list, *first);
-    }
     result = str8_list_join(arena, error_messages, &join);
   }
   return result;     
 }
 
-internal HTMLTag *
-html_create_tag_from_text_types(Arena *arena, TextType types)
-{
-  HTMLTag *result = push_array(arena, HTMLTag, 1);
-  HTMLTagTable table = html_get_tag_table();
-  for(U32 idx = 0; idx < table.tag_count; ++idx)
-  {
-    HTMLTagInvariant *invariant = &table.tags[idx];
-    if(types & invariant->text_types)
-    {
-      result = html_create_tag(arena, invariant);
-      break;
-    }
-  }
-  return result;
-}
-
-internal HTMLElement * 
-html_create_element_from_textual(Arena *arena, Textual textual)
-{
-  HTMLElement *result = push_array(arena, HTMLElement, 1);
-  //TODO: Do the real computation (search this line to see other)
-  result->tags[0] = html_create_tag_from_text_types(arena, textual.type);
-  result->tags[1] = html_create_tag_from_text_types(arena, textual.type);
-  
-  return result;
-}
-
-internal HTMLElement *
+internal HTMLElementNode *
 html_create_element_from_tag_type(Arena *arena, U64 type)
 {
-  HTMLElement *result = push_array(arena, HTMLElement, 1);  
-  HTMLTagTable table = html_get_tag_table();
+  HTMLElementNode *result = push_array(arena, HTMLElementNode, 1);  
+  HTMLTagInvariantTable table = html_get_tag_table();
   for(U32 idx = 0; idx < table.tag_count; ++idx)
   {
     HTMLTagInvariant *invariant = &table.tags[idx];
-    if(type == invariant->type)
+    if(type == invariant->tag)
     {
       //TODO: Do the real computation (search this line to see other)
-      result->tags[0] = html_create_tag(arena, invariant);
-      result->tags[1] = html_create_tag(arena, invariant);
+      result->element.tags[0] = html_tag_from_inv(arena, invariant);
+      result->element.tags[1] = html_tag_from_inv(arena, invariant);
       break;
     }
   }
@@ -526,132 +420,40 @@ html_create_element_from_tag_type(Arena *arena, U64 type)
   return result;
 }
 
-internal void
-html_append_into(Arena *arena, HTMLElement *first_el, HTMLElement *root)
-{
-  for(HTMLElement *last_el = root; 
-      last_el !=0; 
-      last_el = last_el->first_sub_element)
-  {
-    
-    if(!last_el->first_sub_element)
-    {
-      last_el->first_sub_element = first_el;
-      break;
-    }
-  }
-}
-
-internal void
-html_append_first_sub(HTMLParser *parser, Arena *arena, HTMLElement *root, 
-                      U64 tag_type_root, HTMLElement *el_to_append)
-{
-  //TODO: Never tested
-  HTMLTag *invariant = html_create_tag_from_tag_type(arena, tag_type_root);
-  
-  if(!(tag_type_root & UNIQUE_TAGS) || 
-      invariant->enclosing_type != HTMLTagEnclosingType_Paired)
-  {
-    str8_list_push(arena, parser->error.messages, str8_lit("Elements with unique tag can't have sub element"));
-    parser->error.type = HTMLErrorType_wrong_enclosing_type;
-  }
-  
-  for(HTMLElement *root_el = root; 
-      root_el != 0; 
-      root_el = root_el->first_sub_element)
-  {
-    if(root_el->tags[0]->type == tag_type_root)
-    {
-      el_to_append->next_sibbling = root_el->first_sub_element;
-      root_el->first_sub_element = el_to_append;
-      
-      break;
-    }
-  }
-}
-
-internal HTMLElement *
+internal HTMLElementNode *
 html_get_root_doc(Arena *arena, String8 title)
 {
-  HTMLElement *doctype = html_create_element_from_tag_type(arena, HTMLTagType_DOCTYPE);
-  HTMLElement *html    = html_create_element_from_tag_type(arena, HTMLTagType_HTML);
-  HTMLElement *head    = html_create_element_from_tag_type(arena, HTMLTagType_HEAD);
-  HTMLElement *body    = html_create_element_from_tag_type(arena, HTMLTagType_BODY);
-  HTMLElement *div     = html_create_element_from_tag_type(arena, HTMLTagType_DIV);
+  HTMLElementNode *doctype = html_create_element_from_tag_type(arena, HTMLTag_DOCTYPE);
+  HTMLElementNode *html    = html_create_element_from_tag_type(arena, HTMLTag_HTML);
+  HTMLElementNode *head    = html_create_element_from_tag_type(arena, HTMLTag_HEAD);
+  HTMLElementNode *body    = html_create_element_from_tag_type(arena, HTMLTag_BODY);
+  HTMLElementNode *div     = html_create_element_from_tag_type(arena, HTMLTag_DIV);
   
-  doctype->next_sibbling = html;
-  html->first_sub_element = head;
-  head->next_sibbling = body;
-  body->first_sub_element = div;
+  DLLPushBack_NPZ(&html_el_n_g_nil, body->first, body->last, div, next, prev);
+  DLLPushBack_NPZ(&html_el_n_g_nil, head->first, head->last, body, next, prev);
+  DLLPushBack_NPZ(&html_el_n_g_nil, html->first, html->last, head, next, prev);
+  DLLPushBack_NPZ(&html_el_n_g_nil, doctype->first, doctype->last, html, next, prev);
   
   if(title.size)
   {
-    HTMLElement *h1 = html_create_element_from_tag_type(arena, HTMLTagType_H1);
+    HTMLElementNode *h1 = html_create_element_from_tag_type(arena, HTMLTag_H1);
     
     String8 h1_content = push_str8_copy(arena, title);
-    h1->content = h1_content;
-    div->first_sub_element = h1;
+    DLLPushBack_NPZ(&html_el_n_g_nil, div->first, div->last, h1, next, prev);
   }
   
   return doctype;
 }
-
-/*
-    NOTE: HTMLElement and Textual differ when it comes to sibbling and first_sub
-          there is work to do in terms of the implementation of the data types. Textual 
-          sub permits to keep tracks of the related parent, but in HTMLElement an element 
-          have relation not currently saved like a h2 is a child of the h1. Maybe we could 
-          make a table or use the inl implementation in order to explicitely have this relation.
-          The reason it's not clear how the implementation can be good, is that textual and html document differs
-          in terms of conceptual meaning. In high level, html permits meaning representation of text and more 
-          compared to textual that is only relation between text 
-          So we unroll the first_sub_textual AND unroll the next_sibbling textual
-          In short: textual / html element's first sub element differ. html element have +1 level relatioship 
-  */
-internal HTMLElement *
-html_element_from_textual(Arena *arena, Textual *textual)
-{
-  HTMLElement *result = {0};
-  
-  if(textual)
-  {
-    // NOTE: Unrolling sub and next sibbling from textual    
-    HTMLElement *first = {0};
-    HTMLElement *last = {0};
-    for(Textual *sibbling_textual = textual;
-        sibbling_textual != 0;
-        sibbling_textual = sibbling_textual->next_sibbling)
-    {
-      HTMLElement *root = html_create_element_from_textual(arena, *sibbling_textual);
-      
-      HTMLElement *first_sub = {0};
-      HTMLElement *last_sub = {0};
-      for(Textual *sub_textual = sibbling_textual->first_sub_textual;
-          sub_textual != 0;
-          sub_textual = sub_textual->first_sub_textual)
-      {        
-        HTMLElement *el = html_create_element_from_textual(arena, *sub_textual);
-        AppendLast(first_sub, last_sub, last_sub->next_sibbling, el);
-      }
-      
-      root->next_sibbling = first_sub;
-      AppendLast(first, last, last->next_sibbling, root);
-      // TODO: macro not usable when unrolling two lists
-      last = last_sub;
-    }
-    result = first;
-  }
-  
-  return result;  
-}
   
 internal String8
-html_str8_from_element(Arena *arena, HTMLElement *el, U8 indent)
+html_str8_from_element(Arena *arena, HTMLElementNode *root, U8 indent)
 {
   String8 result = {0};
+  if(!root) return result;
+  
   String8List *list_result = push_array(arena, String8List, 1);
-  // TODO: check if new implementation fail
-  U8 indentation = el->level_deep * indent;
+  
+  U8 indentation = root->element.level_deep * indent;
   String8 tab_space = {0};
   while(indentation)
   {
@@ -659,42 +461,45 @@ html_str8_from_element(Arena *arena, HTMLElement *el, U8 indent)
     --indentation;
   }
   str8_list_push(arena, list_result, tab_space);
+  
+  HTMLElementNode *n = root;
   for(;
-      el != 0;
-      el = el->next_sibbling)
+      n != 0 && n != &html_el_n_g_nil;
+      n = n->next)
   {
-    if(el)
+    String8 str = push_str8f(arena, "%S", tab_space);
+    str = push_str8_cat(arena, str, push_str8f(arena, "<%S", n->element.tags[0]->tag_name));
+    switch(n->element.tags[0]->enclosing_type)
     {
-      String8 str = tab_space;
-      str = push_str8_cat(arena, str, str8_lit("<"));
-      str = push_str8_cat(arena, str, el->tags[0]->tag_name);
-      
-      switch(el->tags[0]->enclosing_type)
+      case HTMLTagEnclosingType_Paired:
       {
-        case HTMLTagEnclosingType_Paired:
+        str = push_str8_cat(arena, str, push_str8f(arena, ">%S", n->element.raw.data));
+        String8 closing_tag = push_str8f(arena, "</%S>", n->element.tags[0]->tag_name);
+        // NOTE: Recursion for children nodes 
+        String8 children_str8 = html_str8_from_element(arena, n->first, indent);
+        if(children_str8.size == 0 ||
+           n->first->element.tags[0]->tag_type == TagType_Block)
         {
-          str = push_str8_cat(arena, str, str8_lit(">"));
-          if(el->first_sub_element) 
-          {
-            str = push_str8_cat(arena, str, html_str8_from_element(arena, el->first_sub_element, indent));
-          }
-          str = push_str8_cat(arena, str, str8_lit("</"));
-          str = push_str8_cat(arena, str, el->tags[0]->tag_name);
-          str = push_str8_cat(arena, str, str8_lit(">"));
-        } break;
-        case HTMLTagEnclosingType_Unique:
+          str = push_str8_cat(arena, str, push_str8f(arena, "%S%S", closing_tag, children_str8));
+        }
+        else if(n->first->element.tags[0]->tag_type == TagType_Inline)
         {
-          str = push_str8_cat(arena, str ,str8_lit(">"));
-        } break;        
-        case HTMLTagEnclosingType_Self:
-        {
-          str = push_str8_cat(arena, str ,str8_lit("/>"));
-        } break;
+          str = push_str8_cat(arena, str, push_str8f(arena, "%S%S", children_str8, closing_tag));
+        }
         
-      }  
-      str = push_str8_cat(arena, str, str8_lit("\n"));
-      str8_list_push(arena, list_result, str);
-    }
+      } break;
+      case HTMLTagEnclosingType_Unique:
+      {
+        str = push_str8_cat(arena, str ,str8_lit(">"));
+      } break;        
+      case HTMLTagEnclosingType_Self:
+      {
+        str = push_str8_cat(arena, str ,str8_lit("/>"));
+      } break;
+      
+    }  
+    str = push_str8_cat(arena, str, str8_lit("\n"));
+    str8_list_push(arena, list_result, str);
   }
     
   StringJoin join = {0};
@@ -704,50 +509,42 @@ html_str8_from_element(Arena *arena, HTMLElement *el, U8 indent)
   return result;
 }
 
-internal HTMLElement *
-html_try_get_first_element_from_tag_type(HTMLElement *element, U64 type)
+internal HTMLTagInvariant *
+html_find_first_tag_from_meaning(Arena *arena, RawMeaning meaning)
 {
-  HTMLElement *result = {0};
-  for(HTMLElement *el = element; el != 0; el = el->next_sibbling)
+  HTMLTagInvariant *result = push_array(arena, HTMLTagInvariant, 1);
+  HTMLTagInvariantTable table = html_get_tag_table();  
+  for(U8 idx = 0; idx < table.tag_count; ++idx)
   {
-    if(el->tags[0]->type == type)
+    HTMLTagInvariant *invariant = table.tags + idx;
+    if(invariant->meaning.strenght == meaning.strenght && 
+       invariant->meaning.semantic_flags & meaning.semantic_flags)
     {
-      result = el;
+      result = invariant;
       break;
     }
-  } 
+  }
+  
   return result;
 }
 
-
-internal String8
-html_get_title_content(HTMLElement *el)
+internal HTMLElementNode *
+html_element_from_raw_node(Arena *arena, RawDataNode *raw_n)
 {
-  String8 title_content = {0};
-  
-  for(HTMLElement *sib = el;
-      sib != 0;
-      sib = sib->next_sibbling)
-  {
-    if(el->tags[0]->type == HTMLTagType_H1)
+  // TODO: previous is not set for annotation's details
+    HTMLElementNode *root_n = push_array(arena, HTMLElementNode, 1);
+    HTMLTag *tag = html_tag_from_inv(arena, html_find_first_tag_from_meaning(arena, raw_n->raw.meaning));
+    root_n->element.tags[0] = root_n->element.tags[1] = tag;
+    root_n->element.raw.meaning = raw_n->raw.meaning;
+    root_n->element.raw.data = push_str8_copy(arena, raw_n->raw.data);
+    
+    for(RawDataNode *n = raw_n->first;
+        n != &raw_node_g_nil && n != 0;
+        n = n->next)
     {
-      title_content = el->content;
-      break;
+      HTMLElementNode *element_n = html_element_from_raw_node(arena, n);
+      DLLPushBack_NPZ(&html_el_n_g_nil, root_n->first, root_n->last, element_n, next, prev);
     }
     
-    for(HTMLElement *sub_el = sib->first_sub_element;
-        sub_el != 0;
-        sub_el = sub_el->next_sibbling)
-    {
-      if(sub_el->tags[0]->type == HTMLTagType_H1)
-      {
-        title_content = sub_el->content;
-        break;
-      }
-      html_get_title_content(sub_el->first_sub_element);
-    }
-    html_get_title_content(sib->first_sub_element);
-  }
-  
-  return title_content;
+    return root_n;
 }

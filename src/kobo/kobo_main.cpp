@@ -8,80 +8,33 @@
 #include "base/base_inc.h"
 #include "os/os_inc.h"
 #include "html/html_inc.h"
-#include "database/database_inc.h"
+#include "kobo/kobo_database.h"
 
 #include "os/os_inc.c"
 #include "base/base_inc.c"
 #include "html/html_inc.c"
-#include "database/database_inc.c"
+#include "kobo/kobo_database.c"
 
-
-static ColumRawMeaning column_meanings[] = {
-    COL_TEXT("VolumeID",            {RawStrenght_Highest, RawHLMeaning_Contextual}),
-    COL_TEXT("StartContainerPath",  {RawStrenght_Lowest, RawHLMeaning_Contextual}),
-    COL_TEXT("EndContainerPath",    {RawStrenght_Lowest, RawHLMeaning_Contextual}),
-    COL_TEXT("Text",                {RawStrenght_Lowest, RawHLMeaning_Contextual}),
-    COL_TEXT("Annotation",          {RawStrenght_Lowest, RawHLMeaning_Contextual}),
-    COL_TEXT("DateCreated",         {RawStrenght_Lowest, RawHLMeaning_Time}),
-    COL_TEXT("ChapterProgress",     {RawStrenght_Lowest, RawHLMeaning_Contextual}),
-    COL_TEXT("Type",                {RawStrenght_Lowest, RawHLMeaning_Contextual}),
-    COL_TEXT("BookmarkID",          {RawStrenght_Lowest, RawHLMeaning_Contextual}),
+internal String8
+full_col_names[] = 
+{
+  str8_lit("Annotation"),
+  str8_lit("VolumeID"),
+  str8_lit("Text"),
+  str8_lit("DateCreated"),
+  str8_lit("ChapterProgress"),
+  str8_lit("Type"),
+  str8_lit("ContentID"),
 };
 
+internal String8
+light_col_names[] = 
+{
+  str8_lit("Annotation"),
+  str8_lit("VolumeID"),
+  str8_lit("VolumeID"),
+};
 
-// 
-// internal void
-// kobo_format_column_value(Arena *arena, EntryDataDBList *list)
-// {
-//   for(EntryDataDBNode *node = list->first;
-//       node != 0; 
-//       node = node->next)
-//   {
-//       for(ColumnData *column = &node->entry.data;
-//           column != 0;
-//           column = column->next_sibbling)
-//       {        
-//         if(str8_match(column->name, str8_lit("VolumeID"), 0))
-//         {
-//           column->value = str8_from_last_slash(column->value);
-//           column->value = str8_chop_last_dot(column->value);
-//           // column->value = push_str8_cat(arena, str8_lit("VolumeID: "), column->value);
-//         }
-//         else if(str8_match(column->name,str8_lit("StartContainerPath"), 0))
-//         {
-//             // column->value = push_str8_cat(arena, str8_lit("StartContainerPath: "), column->value);
-//         }
-//         else if(str8_match(column->name, str8_lit("EndContainerPath"), 0))
-//         {
-//           // column->value = push_str8_cat(arena, str8_lit("EndContainerPath: "), column->value);
-//         }
-//         else if(str8_match(column->name, str8_lit("Text"), 0))
-//         {
-//           // column->value = push_str8_cat(arena, str8_lit("Text: "), column->value);
-//         }
-//         else if(str8_match(column->name, str8_lit("Annotation"), 0))
-//         {
-//           // column->value = push_str8_cat(arena, str8_lit("Annotation: "), column->value);
-//         }
-//         else if(str8_match(column->name, str8_lit("DateCreated"), 0))
-//         {
-//           // column->value = push_str8_cat(arena, str8_lit("DateCreated: "), column->value);
-//         }
-//         else if(str8_match(column->name, str8_lit("ChapterInProgess"), 0))
-//         {
-//           // column->value = push_str8_cat(arena, str8_lit("ChapterInProgess: "), column->value);
-//         }
-//         else if(str8_match(column->name, str8_lit("Type"), 0))
-//         {
-//           // column->value = push_str8_cat(arena, str8_lit("Type: "), column->value);
-//         }
-//         else if(str8_match(column->name, str8_lit("BookmarkID"), 0))
-//         {
-//           // column->value = push_str8_cat(arena, str8_lit("BookmarkID: "), column->value);
-//         }
-//       }    
-//   }
-// }
 
 #if OS_WINDOWS
 int WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nShowCmd)
@@ -89,108 +42,103 @@ int WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int n
   Arena *perm_arena = arena_allocate__sized(GB(2), MB(128));
   char **argv = __argv;
   int argc = __argc;
-  if(argc < 3) {printf("[path_to_sqlite_database] [path_output_file]"); return 0;}
-  String8 root_path = os_current_directory(perm_arena);
+  if(argc < 4) {printf("[path_to_sqlite_database] [path_output_file] [full/brief output]"); return 0;}
+  
+  String8 root_path     = os_current_directory(perm_arena);
   String8List arguments = os_string_list_from_argcv(perm_arena, (int)argc, argv);
-  String8 out_path = arguments.first->next->next->string;
-  String8 db_path = arguments.first->next->string;
-  StateDB *state = database_init(perm_arena, TypeDB_SQLITE, str8_lit("sqlite3.dll"), db_path);
+  String8 db_path       = arguments.first->next->string;
+  String8 out_path      = arguments.first->next->next->string;
+  String8 full_output   = arguments.first->next->next->next->string;
+  SQLiteState *state    = kobo_db_init(perm_arena, str8_lit("sqlite3.dll"), db_path);
   
-  if(!state->is_initialized) {printf("Error: could connect to database %s", argv[1]); return 0;}
-
-  String8 query = str8_lit("SELECT * FROM Bookmark");
-  ColumnData by = {0};
-  by.name = str8_lit("VolumeID");
-    
-  DBRawDataTransformers db_transformers = {0};
-  db_transformers.transformer_int = raw_default_integer_transformer;
-  db_transformers.transformer_float =  raw_default_float_transformer;
-// db_transformers.transformer_blob = raw_default_blob_transformer;
-  db_transformers.transformer_string = raw_default_string_transformer;
-  
-  
-  
-  RawMeaningTable col_meaning_table = database_get_col_raw_meaning_table(perm_arena, column_meanings, ArrayCount(column_meanings));
-  RawDataList *raws = push_array(perm_arena, RawDataList, 1);
-  
-  database_exec_push_raw_list(perm_arena, query, state, cols, col_meaning_table, default_raw_data_transformers);
-    
-  for(ColumnDataDB *col = cols.first;
-      col != 0;
-      col = col->next_sibbling;)
+  if(!state->is_initialized) 
   {
-    raw_data_list_push(perm_arena, raws, col->raw);
+    printf("Error: could connect to database %s", argv[1]); return 0;
   }
-  printf("DB: retrieving entries, grouping by %s", by.name.str);
+  KoboColumnNameTable col_name_table = {0};
   
-  // kobo_format_column_value(perm_arena, raws);
+  if(str8_match(full_output, str8_lit("full"), 0))
+  {
+    col_name_table.names = full_col_names;
+    col_name_table.count = ArrayCount(full_col_names);
+  }
+  else
+  {
+    col_name_table.names = light_col_names;
+    col_name_table.count = ArrayCount(light_col_names);
+  }  
   
-  /*
-    NOTE: EntryDataDBList -> Textual
+  String8 query = str8_lit("SELECT ");
+  String8List *cols = push_array(perm_arena, String8List, 1);
+  StringJoin join = {0, 0, str8_lit(", ")};
+  for(U64 col_idx = 0; col_idx < col_name_table.count; ++col_idx)
+  {
+    str8_list_push(perm_arena, cols, col_name_table.names[col_idx]);
+  }
+  query = push_str8_cat(perm_arena, query, str8_list_join(perm_arena, cols, &join));
+  query = push_str8_cat(perm_arena, query, str8_lit(" FROM Bookmark ORDER BY VolumeID COLLATE NOCASE ASC;"));
+  
+  if(!sqlite_prepare_query(query, state))
+  {
+    state->errors = DBError_Query;
+    return 0 ;
+  }
+  else
+  {
+    state->col_count = sqlite_column_count(state)-1;
+  }
+  /* 
+    NOTE: All book titles are treated as a a tree, in which the root node has the book title nodes
+          then inside each book title node you have annotation nodes having the annotation details node in them
+          root_node (dumb node having the entire nodes)
+              |
+          book_title_node (The book from which the bookmark was saved)
+              |
+          annotation_node (annotation title = Kobo user text while saving the bookmark)
+              |
+          annotation's_details_node (text, date created, bookmark position, etc... = automatically created)
+              
   */
- 
-  TextualList *textual_list = push_array(perm_arena, TextualList, 1);
-  for(RawDataNode *raw_node = raws->first;
-      raw_node != 0; 
-      raw_node = raw_node->next)
+  RawDataNode *book_title_nodes = kobo_db_execute_create_raw(perm_arena, query, state);  
+  String8 file_path_root = push_str8_cat(perm_arena, root_path, str8_lit("/"));
+  for(RawDataNode *n = book_title_nodes->first;
+      n != &raw_node_g_nil;
+      n = n->next)
   {
-    Textual textual = textual_from_raw(raw_node->raw);
-    textual_list_push(perm_arena, textual_list, textual);
-  }
-  
-  /*
-    NOTE: Textual -> HTML
-  */  
-  HTMLElementList *el_list = push_array(perm_arena, HTMLElementList, 1);
-  
-  for(TextualNode *node = textual_list->first;
-      node != 0;
-      node = node->next)
-  {
-    String8 title_text = textual_get_title_content(&node->textual);
-    if(title_text.size == 0)
-    {
-      printf("Couldn't found the title book, we still process without it ...\n");
-    }
-      
-    HTMLElement *root = html_get_root_doc(perm_arena, title_text);
-    HTMLElement *el = html_element_from_textual(perm_arena, &node->textual);
-    html_append_into(perm_arena, el, root);
-    html_element_list_push(perm_arena, el_list, *root);
-  } 
-  /*
-    NOTE: HTML -> String + write to file
-  */    
-  for(HTMLElementNode *node = el_list->first;
-      node != 0; 
-      node = node->next)
-  {
-    String8 output = html_str8_from_element(perm_arena, &node->element, 1);
-    String8 file_path = push_str8_cat(perm_arena, root_path, str8_lit("/"));
-    String8 title_content = html_get_title_content(&node->element);
-    
+    String8 file_path = {0};
+    HTMLElementNode *el_n = html_element_from_raw_node(perm_arena, n); 
+    String8 output = html_str8_from_element(perm_arena, el_n, 1);
+    String8 title_content = n->raw.data;
     if(title_content.size)
     {
-      file_path = push_str8_cat(perm_arena, file_path, title_content);
+      String8 start_after = str8_lit("mnt/onboard/");
+      U64 start = str8_find_needle(title_content, 0, start_after, StringMatchFlag_CaseInsensitive);
+      title_content.str += (start + start_after.size);
+      String8List title_path_list = str8_split_by_string_chars(perm_arena, title_content, str8_lit("<>:\"/\\|?*"), StringSplitFlag_KeepEmpties);
+      join = {0, 0, str8_lit(" ")};
+      String8 file_path_windows = str8_list_join(perm_arena, &title_path_list, &join);
+      file_path_windows = str8_chop_last_dot(file_path_windows);
+      file_path = push_str8_cat(perm_arena, file_path_root, file_path_windows);
     }
     else
     {
       file_path = push_str8_cat(perm_arena, file_path, str8_lit("unknown_title"));
     }
-    file_path = push_str8_cat(perm_arena, file_path, str8_lit("_annotations.txt"));
+    file_path = push_str8_cat(perm_arena, file_path, str8_lit(".txt"));
+    
     if(!os_write_data_to_file_path(perm_arena, file_path, output))
     {
       printf("failed to write in file\n");
       break;
     }
   }
-  
-  if(!database_close(state))
+    
+  if(!kobo_db_close(state))
   {
     printf("Error: unable to close the db connexion\n");
   }
   os_library_close(state->lib);
-  database_print_error(state);
+  kobo_db_print_error(state);
   return 0;  
 }
 

@@ -16,7 +16,7 @@ os_file_info_list_push(Arena *arena, OS_FileInfoList *list, OS_FileInfo *info)
 {  
   OS_FileInfoNode *node = push_array(arena, OS_FileInfoNode, 1);
   node->info = *info;
-  SLLPush(list->first, list->last, node);
+  SLLQueuePush_NZ(&os_f_info_n_g_nil, list->first, list->last, node, next);
   list->count += 1;
   return node;
 }
@@ -39,7 +39,8 @@ internal OS_HandleNode*
 os_handle_list_push(Arena *arena, OS_HandleList *list, OS_Handle *handle)
 {
   OS_HandleNode *node = push_array_no_zero(arena, OS_HandleNode, list->count);
-  SLLPush(list->first, list->last, node);
+  SLLQueuePush_NZ(&os_handle_n_g_nil, list->first, list->last, node, next);
+
   list->count += 1;
   return node;
 }
@@ -63,11 +64,12 @@ os_file_infos_join_list(Arena *arena, OS_FileInfoList *a, OS_FileInfoList *b)
   OS_FileInfoList *list = push_array(arena, OS_FileInfoList, 1);
   for(OS_FileInfoNode *node = a->first; node != 0; node = node->next)
   {
-    SLLPush(list->first, list->last, node);
+    SLLQueuePush_NZ(&os_f_info_n_g_nil, list->first, list->last, node, next);
   }
+  
   for(OS_FileInfoNode *node = b->first; node != 0; node = node->next)
   {
-    SLLPush(list->first, list->last, node);
+    SLLQueuePush_NZ(&os_f_info_n_g_nil, list->first, list->last, node, next);
   }
   return list;
 }

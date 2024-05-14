@@ -5,9 +5,8 @@
     *Element* is specified as the full piece of informations of a specific content
     *Tag* is the data marking the start and end of an element
 */
-
-
-enum HTMLTagEnclosingType: U32
+typedef U8 HTMLTagEnclosingType;
+enum 
 { 
   HTMLTagEnclosingType_Null   = 0, 
   
@@ -16,18 +15,34 @@ enum HTMLTagEnclosingType: U32
   HTMLTagEnclosingType_Self   = (1 << 3),
 };
 
+typedef U8 TagType;
+enum
+{
+    TagType_Null,
+    TagType_Empty, // TODO: useful?  
+    TagType_Inline, 
+    TagType_Block,  
+    TagType_Pre    // TODO: useful?
+} ;
+
 typedef struct HTMLTagInvariant HTMLTagInvariant;
 struct HTMLTagInvariant
 {
-  // TODO: is it ok to not having an enum ?
-  U64          type;
-  HTMLTagEnclosingType enclosing_type;
-  String8              tag_name;
-  TextType             text_types;
+  U64                      tag;
+  TagType                  tag_type;
+  HTMLTagEnclosingType     enclosing_type;
+  String8                  tag_name;
+  RawMeaning               meaning;
 };
 
-typedef struct HTMLTagTable HTMLTagTable;
-struct HTMLTagTable
+internal HTMLTagInvariant 
+html_tag_table[] =
+{
+ #include "html_tag_table.inl"
+};
+
+typedef struct HTMLTagInvariantTable HTMLTagInvariantTable;
+struct HTMLTagInvariantTable
 {
   HTMLTagInvariant *tags;
   U8                tag_count;

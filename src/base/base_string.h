@@ -139,10 +139,17 @@ internal U64           str8_find_needle(String8 string, U64 start_pos, String8 n
 internal String8       str8_chop_last_dot(String8 string);
 internal String8       str8_prefix(String8 str, U64 size);
 
-internal String8       cstyle_hex_from_u64(Arena *arena, U64 x, B32 caps);
 internal S64           sign_from_str8(String8 string, String8 *string_tail);
+
+internal String8       push_str8fv(Arena *arena, char *fmt, va_list args);
+internal String8       push_str8f(Arena *arena, char *fmt, ...);
+
+internal String8       cstyle_hex_from_u64(Arena *arena, U64 x, B32 caps);
 internal S64           s64_from_str8(String8 string, U32 radix);
 internal F64           f64_from_str8(String8 string);
+
+internal String8       str8_from_u64(Arena *arena, U64 u64, U32 radix, U8 min_digits, U8 digit_group_separator);
+internal String8       str8_from_s64(Arena *arena, S64 s64, U32 radix, U8 min_digits, U8 digit_group_separator);
 
 internal U64           cstring8_length(U8 *c);
 internal String8       str8_skip_chop_whitespace(String8 string);

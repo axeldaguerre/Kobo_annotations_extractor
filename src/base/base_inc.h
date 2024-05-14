@@ -9,4 +9,6 @@
 #include"base_string.h"
 #include"base_command_line.h"
 
+#include"base_raw.h"
+
 #endif

@@ -658,7 +658,49 @@ cstring8_length(U8 *c){
   return(p - c);
 }
 
+internal String8
+push_str8fv(Arena *arena, char *fmt, va_list args){
+  va_list args2;
+  va_copy(args2, args);
+  U32 needed_bytes = stbsp_vsnprintf(0, 0, fmt, args) + 1;
+  String8 result = {0};
+  result.str = push_array_no_zero(arena, U8, needed_bytes);
+  result.size = stbsp_vsnprintf((char*)result.str, needed_bytes, fmt, args2);
+  result.str[result.size] = 0;
+  va_end(args2);
+  return(result);
+}
+
+internal String8
+push_str8f(Arena *arena, char *fmt, ...){
+  va_list args;
+  va_start(args, fmt);
+  String8 result = push_str8fv(arena, fmt, args);
+  va_end(args);
+  return(result);
+}
+
 // Conversions
+internal String8
+str8_from_s64(Arena *arena, S64 s64, U32 radix, U8 min_digits, U8 digit_group_separator)
+{
+  String8 result = {0};
+  // TODO(rjf): preeeeetty sloppy...
+  if(s64 < 0)
+  {
+    Temp scratch = temp_begin(arena);
+    String8 numeric_part = str8_from_u64(scratch.arena, (U64)(-s64), radix, min_digits, digit_group_separator);
+    result = push_str8f(arena, "-%S", numeric_part);
+    temp_end(scratch);
+  }
+  else
+  {
+    result = str8_from_u64(arena, (U64)s64, radix, min_digits, digit_group_separator);
+  }
+  
+  return result;
+}
+
 internal String8
 str8_from_u64(Arena *arena, U64 u64, U32 radix, U8 min_digits, U8 digit_group_separator)
 {
@@ -719,28 +761,24 @@ str8_from_u64(Arena *arena, U64 u64, U32 radix, U8 min_digits, U8 digit_group_se
     {
       U64 u64_reduce = u64;
       U64 digits_until_separator = digit_group_size;
-      for(U64 idx = 0; idx < result.size; idx += 1)
+      for(U64 idx = 0; idx < result.size-prefix.size; idx += 1)
       {
         if(digits_until_separator == 0 && digit_group_separator != 0)
         {
           result.str[result.size - idx - 1] = digit_group_separator;
           digits_until_separator = digit_group_size+1;
         }
-        else
+        else if(u64_reduce != 0)
         {
           result.str[result.size - idx - 1] = char_to_lower(integer_symbols[u64_reduce%radix]);
           u64_reduce /= radix;
         }
-        digits_until_separator -= 1;
-        if(u64_reduce == 0)
+        else
         {
-          break;
+          result.str[result.size - idx - 1] = '0';
         }
-      }
-      for(U64 leading_0_idx = 0; leading_0_idx < needed_leading_0s; leading_0_idx += 1)
-      {
-        result.str[prefix.size + leading_0_idx] = '0';
-      }
+        digits_until_separator -= 1;        
+      }      
     }
     
     // rjf: fill prefix

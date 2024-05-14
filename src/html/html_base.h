@@ -1,7 +1,7 @@
 #ifndef HTML_BASE_H
 #define HTML_BASE_H
 
-#define UNIQUE_TAGS HTMLTagType_MAIN|HTMLTagType_DOCTYPE|HTMLTagType_HTML|HTMLTagType_BODY|HTMLTagType_FOOTER
+#define UNIQUE_TAGS HTMLTag_MAIN|HTMLTag_DOCTYPE|HTMLTag_HTML|HTMLTag_BODY|HTMLTag_FOOTER
 // TODO: better names
 typedef U32 RawTokenType;
 enum
@@ -26,35 +26,48 @@ struct HTMLToken
 typedef struct HTMLTag HTMLTag;
 struct HTMLTag
 {  
-  /*
-    TODO: Get rid of the text_type, user should be able to define them. HTML spec is very 
-          dense and hard to code on tag meaning, some tags have different meaning and are 
-          sometimes obscure. 
-  */
-  U64                  type;
+  U64                  tag;
+  TagType              tag_type;
   HTMLTagEnclosingType enclosing_type;
   HTMLToken            first_token;
   HTMLToken            last_token;
   String8              tag_name;
-  TextType             text_types;
+  RawMeaning           meaning;
 };
 
 typedef struct HTMLElement HTMLElement;
 struct HTMLElement
 {
-  
-  HTMLElement *first_sub_element;
-  HTMLElement *next_sibbling;
+  // TODO: Parent, last, previous ?
+  // HTMLElement *first_sub_element;
+  // HTMLElement *next_sibbling;
   HTMLTag     *tags[2];
-  String8      content;
+  RawData      raw;
   U8           level_deep;
 };
 
 typedef struct HTMLElementNode HTMLElementNode;
 struct HTMLElementNode
 {
+  HTMLElementNode *parent;
+  HTMLElementNode *first;
+  HTMLElementNode *last;
   HTMLElementNode *next;
+  HTMLElementNode *prev;
+  
+  HTMLElementNode *hash_next;
+  HTMLElementNode *hash_prev;
+  
   HTMLElement      element;
+};
+
+read_only global HTMLElementNode html_el_n_g_nil =
+{
+  &html_el_n_g_nil,
+  &html_el_n_g_nil,
+  &html_el_n_g_nil,
+  &html_el_n_g_nil,
+  &html_el_n_g_nil,
 };
 
 typedef struct HTMLElementList HTMLElementList;
@@ -62,7 +75,7 @@ struct HTMLElementList
 {
   HTMLElementNode *first;
   HTMLElementNode *last;
-  U64              node_count;
+  U64  node_count;
 };
 
 typedef U32 HTMLErrorType;
@@ -88,7 +101,7 @@ typedef struct HTMLParser HTMLParser;
 struct HTMLParser
 {
   String8       string;
-  U64           skip_until_tag_type;
+  U64           skip_until_tag;
   HTMLError     error;
   U8            level_deep;
   U8            space_by_indent;

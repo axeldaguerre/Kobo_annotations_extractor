@@ -11,7 +11,17 @@ typedef struct OS_HandleNode OS_HandleNode;
 struct OS_HandleNode
 {
   OS_HandleNode *next;
+  OS_HandleNode *first;
+  OS_HandleNode *last;
+  
   OS_Handle handle;
+};
+
+read_only global OS_HandleNode os_handle_n_g_nil =
+{
+  &os_handle_n_g_nil,
+  &os_handle_n_g_nil,
+  &os_handle_n_g_nil,
 };
 
 typedef struct OS_HandleList OS_HandleList;
@@ -75,8 +85,18 @@ struct OS_FileInfo
 typedef struct OS_FileInfoNode OS_FileInfoNode;
 struct OS_FileInfoNode
 {
+  OS_FileInfoNode *first;
+  OS_FileInfoNode *last;
   OS_FileInfoNode *next;
+  
   OS_FileInfo      info;
+};
+
+read_only global OS_FileInfoNode os_f_info_n_g_nil =
+{
+  &os_f_info_n_g_nil,
+  &os_f_info_n_g_nil,
+  &os_f_info_n_g_nil,
 };
 
 typedef struct OS_FileInfoList OS_FileInfoList;

@@ -53,16 +53,15 @@ textual_type_from_raw(RawMeaning raw_meaning)
 {
   TextType result = TextType_Null;
   
-  switch(raw_meaning.high_level_meaning)
+  switch(raw_meaning.semantic_flags)
   {
-    
-    case RawHLMeaning_Contextual:
+    case RawSemantic_Contextual:
     {
       if(raw_meaning.strenght == RawStrenght_Lowest)
       {
         result = TextType_Heading4;
       }
-      else if(raw_meaning.strenght == RawStrenght_Low)
+      else if(raw_meaning.strenght == RawStrenght_BelowMedium)
       {
         result = TextType_Heading3;
       }
@@ -80,34 +79,33 @@ textual_type_from_raw(RawMeaning raw_meaning)
       }
     } break;
 
-    case RawHLMeaning_Time:
+    case RawSemantic_Time:
     {
-      result = TextType_Code;
+    result = TextType_Code;
     } break;
   }
-  
   
   return result;
 }
 
-internal Textual *
-textual_from_raw(Arena *arena, RawData *raw)
+internal void 
+textual_from_raws(Arena *arena, RawDataList *raw_list, TextualList *out)
 {
-  Textual *first = {0};
-  Textual *last = {0};
-  for(RawData *chunk = raw;
-      chunk != 0;
-      chunk = chunk->next)
+  for(RawDataNode *raw_node = raw_list->first;
+      raw_node != 0; 
+      raw_node = raw_node->next)
   {
-    Textual *textual = push_array(arena, Textual, 1);
-    String8 text = {0};
-    text.str = push_array(arena, U8, chunk->buffer.size);
-    text.size = chunk->buffer.size;
-    chunk->transformer(chunk->buffer, text);
-    textual->text = text;
-    textual->type = textual_type_from_raw(chunk->meaning);
-    AppendLast(first, last, last->next_sibbling, textual);
+    Textual *first = {0};
+    Textual *last = {0};
+    
+    for(RawData *chunk = &raw_node->raw;
+        chunk != 0;
+        chunk = chunk->next)
+    {
+      Textual *textual = push_array(arena, Textual, 1);
+      textual->text = chunk->data;
+      textual->type = textual_type_from_raw(chunk->meaning);
+      AppendLast(first, last, last->next_sibbling, textual);
+    }
   }
-  
-  return first; 
 }

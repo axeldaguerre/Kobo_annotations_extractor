@@ -3,56 +3,57 @@
           from the table, such as html tagname as strings or enums, if a tag has a closing tag etc.
          - The order is used for priority, id est if we want a tag being a title, we will get the closer 
             from the top and ignore the ones below.
-   
 */
 
 #ifndef TAG
-  #define TAG(TagType, ClosingType, str, TextualTypes) { TagType, HTMLTagEnclosingType_##ClosingType, str, TextualTypes},
+  #define TAG(Tag, Type, ClosingType, str, Strenght, RawMeaning)\
+            { Tag, Type, HTMLTagEnclosingType_##ClosingType, str, RawStrenght_##Strenght, RawSemantic_##RawMeaning },
 #endif
 
-#define HTMLTagType_NULL     0
-#define HTMLTagType_A       (1ull << 1)
-#define HTMLTagType_P       (1ull << 2)
-#define HTMLTagType_LI      (1ull << 3)
-#define HTMLTagType_UL      (1ull << 4)
-#define HTMLTagType_OL      (1ull << 5)
-#define HTMLTagType_H1      (1ull << 6)
-#define HTMLTagType_H2      (1ull << 7)
-#define HTMLTagType_H3      (1ull << 8)
-#define HTMLTagType_H4      (1ull << 9)
-#define HTMLTagType_DIV     (1ull << 10)
-#define HTMLTagType_IMG     (1ull << 11)
-#define HTMLTagType_BR      (1ull << 12)
-#define HTMLTagType_STRONG  (1ull << 13)
-#define HTMLTagType_SPAN    (1ull << 14)
-#define HTMLTagType_PRE     (1ull << 15)
-#define HTMLTagType_U       (1ull << 16)
-#define HTMLTagType_EM      (1ull << 17)
-#define HTMLTagType_CODE    (1ull << 18)
-#define HTMLTagType_SECTION (1ull << 19)
-#define HTMLTagType_META    (1ull << 20)
-#define HTMLTagType_LINK    (1ull << 21)
-#define HTMLTagType_SCRIPT  (1ull << 22)
-#define HTMLTagType_SMALL   (1ull << 23)
-#define HTMLTagType_ARTICLE (1ull << 24)
-#define HTMLTagType_NAV     (1ull << 25)
-#define HTMLTagType_HEADER  (1ull << 26)
-#define HTMLTagType_MAIN    (1ull << 27)
-#define HTMLTagType_ASIDE   (1ull << 28)
-#define HTMLTagType_TABLE   (1ull << 29)
-#define HTMLTagType_TR      (1ull << 31)
-#define HTMLTagType_TH      (1ull << 32)
-#define HTMLTagType_TD      (1ull << 33)
-#define HTMLTagType_FORM    (1ull << 34)
-#define HTMLTagType_INPUT   (1ull << 35)
-#define HTMLTagType_BUTTON  (1ull << 36)
-#define HTMLTagType_LABEL   (1ull << 43)
-#define HTMLTagType_HEAD    (1ull << 37)
-#define HTMLTagType_DOCTYPE (1ull << 38)
-#define HTMLTagType_HTML    (1ull << 39)
-#define HTMLTagType_TITLE   (1ull << 40)
-#define HTMLTagType_BODY    (1ull << 41)
-#define HTMLTagType_FOOTER  (1ull << 42)
+#define HTMLTag_NULL     0
+#define HTMLTag_A       (1ull << 1)
+#define HTMLTag_P       (1ull << 2)
+#define HTMLTag_LI      (1ull << 3)
+#define HTMLTag_UL      (1ull << 4)
+#define HTMLTag_OL      (1ull << 5)
+#define HTMLTag_H1      (1ull << 6)
+#define HTMLTag_H2      (1ull << 7)
+#define HTMLTag_H3      (1ull << 8)
+#define HTMLTag_H4      (1ull << 9)
+#define HTMLTag_DIV     (1ull << 10)
+#define HTMLTag_IMG     (1ull << 11)
+#define HTMLTag_BR      (1ull << 12)
+#define HTMLTag_B       (1ull << 13)
+#define HTMLTag_STRONG  (1ull << 14)
+#define HTMLTag_SPAN    (1ull << 15)
+#define HTMLTag_PRE     (1ull << 16)
+#define HTMLTag_U       (1ull << 17)
+#define HTMLTag_EM      (1ull << 18)
+#define HTMLTag_CODE    (1ull << 19)
+#define HTMLTag_SECTION (1ull << 20)
+#define HTMLTag_META    (1ull << 21)
+#define HTMLTag_LINK    (1ull << 22)
+#define HTMLTag_SCRIPT  (1ull << 23)
+#define HTMLTag_SMALL   (1ull << 24)
+#define HTMLTag_ARTICLE (1ull << 25)
+#define HTMLTag_NAV     (1ull << 26)
+#define HTMLTag_HEADER  (1ull << 27)
+#define HTMLTag_MAIN    (1ull << 28)
+#define HTMLTag_ASIDE   (1ull << 29)
+#define HTMLTag_TABLE   (1ull << 30)
+#define HTMLTag_TR      (1ull << 31)
+#define HTMLTag_TH      (1ull << 32)
+#define HTMLTag_TD      (1ull << 33)
+#define HTMLTag_FORM    (1ull << 34)
+#define HTMLTag_INPUT   (1ull << 35)
+#define HTMLTag_BUTTON  (1ull << 36)
+#define HTMLTag_LABEL   (1ull << 43)
+#define HTMLTag_HEAD    (1ull << 37)
+#define HTMLTag_DOCTYPE (1ull << 38)
+#define HTMLTag_HTML    (1ull << 39)
+#define HTMLTag_TITLE   (1ull << 40)
+#define HTMLTag_BODY    (1ull << 41)
+#define HTMLTag_FOOTER  (1ull << 42)
 
 #define A          { (U8*)"a",         sizeof("a")-1 }
 #define P          { (U8*)"p",         sizeof("p")-1 }
@@ -66,6 +67,7 @@
 #define DIV        { (U8*)"div",       sizeof("div")-1 }
 #define IMG        { (U8*)"img",       sizeof("img")-1 }
 #define BR         { (U8*)"br",        sizeof("br")-1 }
+#define B          { (U8*)"b",         sizeof("b")-1 }
 #define STRONG     { (U8*)"strong",    sizeof("strong")-1 }
 #define SPAN       { (U8*)"span",      sizeof("span")-1 }
 #define PRE        { (U8*)"pre",       sizeof("pre")-1 }
@@ -97,52 +99,55 @@
 #define FOOTER     { (U8*)"footer",    sizeof("footer")-1 }
 #define LABEL      { (U8*)"label",     sizeof("label")-1 }
 
-TAG( HTMLTagType_A,       Paired,   A,       { TextType_Link })
-TAG( HTMLTagType_P,       Paired,   P,       { TextType_Paragraph })
-TAG( HTMLTagType_LI,      Paired,   LI,      { TextType_Item_List })
-TAG( HTMLTagType_UL,      Paired,   UL,      { TextType_Parent_List })
-TAG( HTMLTagType_OL,      Paired,   OL,      { TextType_Item_List })
-TAG( HTMLTagType_H1,      Paired,   H1,      { TextType_Title })
-TAG( HTMLTagType_H2,      Paired,   H2,      { TextType_Heading1 })
-TAG( HTMLTagType_H3,      Paired,   H3,      { TextType_Heading2 })
-TAG( HTMLTagType_H4,      Paired,   H4,      { TextType_Heading3 })
-TAG( HTMLTagType_DIV,     Paired,   DIV,     { TextType_Structural })
-TAG( HTMLTagType_IMG,     Unique,   IMG,     { TextType_Visual })
-TAG( HTMLTagType_BR,      Unique,   BR,      { TextType_Esthetic })
-TAG( HTMLTagType_STRONG,  Paired,   STRONG,  { TextType_Esthetic })
-TAG( HTMLTagType_SPAN,    Paired,   SPAN,    { TextType_Esthetic })
-TAG( HTMLTagType_PRE,     Paired,   PRE,     { TextType_Esthetic })
-TAG( HTMLTagType_U,       Paired,   U,       { TextType_Esthetic })
-TAG( HTMLTagType_EM,      Paired,   EM,      { TextType_Esthetic })
-TAG( HTMLTagType_CODE,    Paired,   CODE,    { TextType_Code|TextType_Date})
-TAG( HTMLTagType_SECTION, Paired,   SECTION, { TextType_Structural })
-TAG( HTMLTagType_META,    Unique,   META,    { TextType_Structural })
-TAG( HTMLTagType_LINK,    Unique,   LINK,    { TextType_Structural })
-TAG( HTMLTagType_SCRIPT,  Paired,   SCRIPT,  { TextType_Structural })
-TAG( HTMLTagType_SMALL,   Paired,   SMALL,   { TextType_Esthetic   })
-TAG( HTMLTagType_ARTICLE, Paired,   ARTICLE, { TextType_Structural })
-TAG( HTMLTagType_NAV,     Paired,   NAV,     { TextType_Structural })
-TAG( HTMLTagType_HEADER,  Paired,   HEADER,  { TextType_Structural })
-TAG( HTMLTagType_MAIN,    Paired,   MAIN,    { TextType_Structural })
-TAG( HTMLTagType_ASIDE,   Paired,   ASIDE,   { TextType_Structural })
-TAG( HTMLTagType_TABLE,   Paired,   TABLE,   { TextType_Structural })
-TAG( HTMLTagType_TR,      Paired,   TR,      { TextType_Structural })
-TAG( HTMLTagType_TH,      Paired,   TH,      { TextType_Structural })
-TAG( HTMLTagType_TD,      Paired,   TD,      { TextType_Structural })
-TAG( HTMLTagType_FORM,    Paired,   FORM,    { TextType_Structural })
-TAG( HTMLTagType_INPUT,   Unique,   INPUT,   { TextType_Structural })
-TAG( HTMLTagType_BUTTON,  Paired,   BUTTON,  { TextType_Structural })
-TAG( HTMLTagType_LABEL,   Paired,   LABEL,   { TextType_Structural })
-TAG( HTMLTagType_HEAD,    Paired,   HEAD,    { TextType_Structural })
-TAG( HTMLTagType_DOCTYPE, Unique,   DOCTYPE, { TextType_Structural })
-TAG( HTMLTagType_HTML,    Paired,   HTML,    { TextType_Unmeaningfull })
-TAG( HTMLTagType_TITLE,   Paired,   TITLE,   { TextType_Structural })
-TAG( HTMLTagType_BODY,    Paired,   BODY,    { TextType_Structural })
-TAG( HTMLTagType_FOOTER,  Paired,   FOOTER,  { TextType_Structural })
-
+/*
+  NOTE: tags emphasizing element's content will have +1 strenght and inherit Semantic from it
+*/
+TAG( HTMLTag_A,       TagType_Inline, Paired,   A,       AboveMedium, Link)
+TAG( HTMLTag_P,       TagType_Block, Paired,   P,       AboveMedium, Details)
+TAG( HTMLTag_LI,      TagType_Block, Paired,   LI,      AboveMedium, Step)
+TAG( HTMLTag_UL,      TagType_Block, Paired,   UL,      Lowest, Step)
+TAG( HTMLTag_OL,      TagType_Block, Paired,   OL,      Lowest, Step)
+TAG( HTMLTag_H1,      TagType_Block, Paired,   H1,      Highest, Summary)
+TAG( HTMLTag_H2,      TagType_Block, Paired,   H2,      High, Summary)
+TAG( HTMLTag_H3,      TagType_Block, Paired,   H3,      AboveMedium, Summary)
+TAG( HTMLTag_H4,      TagType_Block, Paired,   H4,      Medium, Summary)
+TAG( HTMLTag_DIV,     TagType_Block, Paired,   DIV,     Null,        Null)  
+TAG( HTMLTag_IMG,     TagType_Inline, Unique,   IMG,     AboveMedium, Visual)
+TAG( HTMLTag_BR,      TagType_Inline, Unique,   BR,      Null,        Null) 
+TAG( HTMLTag_B,       TagType_Inline, Unique,   B,       Null,        Null) 
+TAG( HTMLTag_STRONG,  TagType_Inline, Paired,   STRONG,  Null,        Null)
+TAG( HTMLTag_SPAN,    TagType_Inline, Paired,   SPAN,    Null,        Null)
+TAG( HTMLTag_PRE,     TagType_Pre, Paired,     PRE,     AboveMedium, Details)
+TAG( HTMLTag_U,       TagType_Block, Paired,   U,       Null, Null)
+TAG( HTMLTag_EM,      TagType_Block, Paired,   EM,      Null, Null)
+TAG( HTMLTag_CODE,    TagType_Block, Paired,   CODE,    AboveMedium, Details)
+TAG( HTMLTag_SECTION, TagType_Block, Paired,   SECTION, Null, Null)
+TAG( HTMLTag_META,    TagType_Block, Unique,   META,    Null, Null)
+TAG( HTMLTag_LINK,    TagType_Block, Unique,   LINK,    AboveMedium, Link)
+TAG( HTMLTag_SCRIPT,  TagType_Inline, Paired,   SCRIPT,  Null, Null)
+TAG( HTMLTag_SMALL,   TagType_Inline, Paired,   SMALL,   Null, Null)
+TAG( HTMLTag_ARTICLE, TagType_Block, Paired,   ARTICLE, Null, Null)
+TAG( HTMLTag_NAV,     TagType_Block, Paired,   NAV,     Null, Null)
+TAG( HTMLTag_HEADER,  TagType_Block, Paired,   HEADER,  Low, Summary)
+TAG( HTMLTag_MAIN,    TagType_Block, Paired,   MAIN,    Null, Null)
+TAG( HTMLTag_ASIDE,   TagType_Block, Paired,   ASIDE,   AboveMedium, Details)
+TAG( HTMLTag_TABLE,   TagType_Block, Paired,   TABLE,   Null, Null)
+TAG( HTMLTag_TR,      TagType_Block, Paired,   TR,      Null, Null)
+TAG( HTMLTag_TH,      TagType_Block, Paired,   TH,      Null, Null)
+TAG( HTMLTag_TD,      TagType_Block, Paired,   TD,      Null, Null)
+TAG( HTMLTag_FORM,    TagType_Block, Paired,   FORM,    Null, Null)
+TAG( HTMLTag_INPUT,   TagType_Inline, Unique,   INPUT,   Null, Null)
+TAG( HTMLTag_BUTTON,  TagType_Inline, Paired,   BUTTON,  Null, Null)
+TAG( HTMLTag_LABEL,   TagType_Inline, Paired,   LABEL,   Null, Null)
+TAG( HTMLTag_HEAD,    TagType_Block, Paired,   HEAD,    Null, Null)
+TAG( HTMLTag_DOCTYPE, TagType_Block, Unique,   DOCTYPE, Null, Null)
+TAG( HTMLTag_HTML,    TagType_Block, Paired,   HTML,    Null, Null)
+TAG( HTMLTag_TITLE,   TagType_Block, Paired,   TITLE,   Highest, Summary)
+TAG( HTMLTag_BODY,    TagType_Block, Paired,   BODY,    Null, Null)
+TAG( HTMLTag_FOOTER,  TagType_Block, Paired,   FOOTER,  Null, Null)
 #undef A
 #undef P
-#undef LI
+#undef I
 #undef UL
 #undef OL
 #undef H1
@@ -152,6 +157,7 @@ TAG( HTMLTagType_FOOTER,  Paired,   FOOTER,  { TextType_Structural })
 #undef DIV
 #undef IMG
 #undef BR
+#undef B
 #undef STRONG
 #undef SPAN
 #undef PRE
