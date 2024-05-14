@@ -31,7 +31,7 @@ internal String8
 light_col_names[] = 
 {
   str8_lit("Annotation"),
-  str8_lit("VolumeID"),
+  str8_lit("Text"),
   str8_lit("VolumeID"),
 };
 

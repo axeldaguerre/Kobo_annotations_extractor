@@ -5,8 +5,12 @@ You can extract them has html or text.
 
 ## How to use
 
-`kobo_extractor_rm.exe path_to_KoboReader.sqlite output_path`
+`kobo_extractor_rm.exe path_to_KoboReader.sqlite output_path "full"` 
  
+`"full"` is for the maximum column values, if you don't set it it will do the light version
+
+If you don't add any parameter, it will print a message a small helper 
+
 ## Tested
 
 It was tested only for Kobo Libra 2. But Any Kobo should works just fine.
