@@ -10,4 +10,4 @@ copy_vault.bat
 *.obj
 *.rdbg
 /build/kobo_extractor_dm.exe
-engine.code-workspace
+src/engine.code-workspace
