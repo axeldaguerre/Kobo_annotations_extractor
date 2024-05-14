@@ -5,6 +5,8 @@ You can extract them has html or text.
 
 ## How to use
 
+Using the exe from `build` folder or by running the build.bat from your computer:
+
 `kobo_extractor_rm.exe path_to_KoboReader.sqlite output_path "full"` 
  
 `"full"` is for the maximum column values, if you don't set it it will do the light version
