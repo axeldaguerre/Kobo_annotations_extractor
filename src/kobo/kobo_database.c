@@ -1,24 +1,24 @@
 internal B32
-sqlite_open_db(String8 db_path, SQLiteState *sqlite_state)
+sqlite_open_db(String8 db_path, SQLiteState *state)
 {
   B32 result = 1;
   
-  if(sqlite_state->api.open_db((char*)db_path.str, &sqlite_state->db) != SQLITE_OK)
+  if(state->api.open_db((char*)db_path.str, &state->db) != SQLITE_OK)
   {
     result = 0;
-    sqlite_state->errors = DBError_Connexion;
+    state->errors = DBError_Connexion;
   }
   return result;
 }
 
 internal B32
-sqlite_close_db(SQLiteState *sqlite_state)
+sqlite_close_db(SQLiteState *state)
 {
   B32 result = 0;
   
-  if(sqlite_state->api.close_db(sqlite_state->db) == SQLITE_OK)
+  if(state->api.close_db(state->db) == SQLITE_OK)
   {
-    sqlite_state->db = 0;
+    state->db = 0;
     result = 1;
   }
   return result;
@@ -80,33 +80,33 @@ kobo_sqlite_init(Arena *arena, String8 lib_path, String8 db_path, SQLiteState *s
 } 
 
 internal B32
-sqlite_prepare_query(String8 query, SQLiteState *sqlite_state)
+sqlite_prepare_query(String8 query, SQLiteState *state)
 {
   B32 result = 0;  
   
-  if(sqlite_state->api.prepare_query(sqlite_state->db, (char *)query.str, -1, &sqlite_state->statement, NULL) ==  SQLITE_OK) 
+  if(state->api.prepare_query(state->db, (char *)query.str, -1, &state->statement, NULL) ==  SQLITE_OK) 
   {
-    sqlite_state->api.bind_int (sqlite_state->statement, 1, 2);
+    state->api.bind_int (state->statement, 1, 2);
     result = 1;
   }
   return result;
 }
 
 internal U8 
-sqlite_column_count(SQLiteState *sqlite_state)
+sqlite_column_count(SQLiteState *state)
 {
   U8 result = 0;
   
-  result = (U8)sqlite_state->api.column_count(sqlite_state->statement);
+  result = (U8)state->api.column_count(state->statement);
   return result;  
 }
 
 internal String8
-sqlite_get_column_name(SQLiteState *sqlite_state, int col_idx)
+sqlite_get_column_name(SQLiteState *state, int col_idx)
 {
   String8 result = {0};
   
-  const char * column_name = sqlite_state->api.col_name(sqlite_state->statement, col_idx);
+  const char * column_name = state->api.col_name(state->statement, col_idx);
   result = str8_cstring((char *)column_name);
   return result;
 }
@@ -131,10 +131,10 @@ kobo_db_init(Arena *arena, String8 lib_path, String8 db_path)
 }
 
 internal B32
-kobo_db_close(SQLiteState *sqlite_state)
+kobo_db_close(SQLiteState *state)
 {
   B32 result = 0;
-  if(sqlite_close_db(sqlite_state))
+  if(sqlite_close_db(state))
   {
     result = 1;
   }
@@ -150,16 +150,18 @@ kobo_db_state_is_running(SQLiteState *state)
               state->step_code != SQLITE_DONE;
   return result;
 }
+
+/*
+    NOTE: When you fetch the db you will have node not related, because entries are sorted by
+          book titles, when the book title is different than the previous we can push the node 
+          on a list and be certain we won't have annotation coming from a book title node we pushed previously
+  */ 
 internal RawDataNode *
 kobo_db_execute_create_raw(Arena *arena, String8 query, SQLiteState *state)
-{
-  /*
-    NOTE:  -"VolumID" col_n value (title) will be the highest order vertex of the "document", 
-           -"Annotation" col_n value will be the highest order vertex of all columns
-  */  
- 
+{  
   B32 print_col_names = 1;
-  RawDataNode *root_n = push_array(arena, RawDataNode, 1); // NOTE: Book title nodes
+  RawDataNode *first_book_n = {0};
+  RawDataNode *last_book_n = {0};
   while(kobo_db_state_is_running(state))
   {
     state->step_code = state->api.step_query(state->statement);
@@ -167,11 +169,8 @@ kobo_db_execute_create_raw(Arena *arena, String8 query, SQLiteState *state)
     { 
       // NOTE: We don't know the order in which the columns will be fetched, we need to keep track of the nodes for later link each together
       RawDataNode *annotation_n = {0}; 
-      RawDataNode *book_title_n = {0};
       RawDataNode *first_details_n = {0};
       RawDataNode *last_details_n = {0};
-      
-      // RawDataNode *annotation_details_n = push_array(arena, RawDataNode, 1);
       for(U8 col_idx = 0; 
           col_idx <= state->col_count; 
           ++col_idx)
@@ -206,58 +205,41 @@ kobo_db_execute_create_raw(Arena *arena, String8 query, SQLiteState *state)
         
         if(str8_match(col_name, str8_lit("Annotation"), 0))
         {
-          // NOTE: Annotation's title
+          // NOTE: Annotation's title column (written by Kobo user)
           col_n->raw.meaning.strenght = RawStrenght_High;
           col_n->raw.meaning.semantic_flags = RawSemantic_Summary;
           annotation_n = col_n;
         }
         else if(str8_match(col_name, str8_lit("VolumeID"), 0))
         {
-          // NOTE: Book's Title
+          // NOTE: Book title column
           col_n->raw.meaning.strenght = RawStrenght_Highest;
           col_n->raw.meaning.semantic_flags = RawSemantic_Summary;
-          
-          for(RawDataNode *n = root_n->first; 
-              n != 0 && n != &raw_node_g_nil; 
-              n = n->next)
+          if(!first_book_n || !str8_match(last_book_n->raw.data, col_n->raw.data, 0))
           {
-            if(str8_match(n->raw.data, col_n->raw.data, 0))
-            {
-              book_title_n = n;
-              break;
-            }
+            SLLQueuePush(first_book_n, last_book_n, col_n);
           }
-          
-          if(!book_title_n)
-          {
-            /* 
-              NOTE: Save new book title inside hash table then
-                    append the annotation title to the parent (last book_title)
-            */
-            DLLPushBack_NPZ(&raw_node_g_nil, 
-                            root_n->first, root_n->last, 
-                            col_n, next, prev);
-            book_title_n = root_n->last;
-          }          
         }
         else
         {
-          // NOTE: Details column
+          // NOTE: Details columns
           col_n->raw.meaning.semantic_flags = RawSemantic_Details;
           col_n->raw.meaning.strenght = RawStrenght_AboveMedium;
+          col_n->parent = annotation_n;
           SLLQueuePush(first_details_n, last_details_n, col_n);
         }
       }
       
-      if(!book_title_n || !annotation_n || !first_details_n)
+      if(!last_book_n || !annotation_n || !first_details_n)
       {
         state->errors |= DBError_Query;
+        return 0;
       }
-      annotation_n->parent = book_title_n;
-      annotation_n->first = first_details_n;
-      DLLPushBack_NPZ(&raw_node_g_nil, 
-                      book_title_n->first, book_title_n->last, 
-                      annotation_n, next, prev);
+      // NOTE: annotation column can be fetch before first details node or book title node
+      annotation_n->first = first_details_n; 
+      annotation_n->parent = last_book_n;
+      
+      DLLPushBack_NPZ(&raw_node_g_nil, last_book_n->first, last_book_n->last, annotation_n, next, prev);
     }
     else if(state->step_code == SQLITE_ERROR) 
     {
@@ -275,25 +257,31 @@ kobo_db_execute_create_raw(Arena *arena, String8 query, SQLiteState *state)
     state->errors = DBError_Query;
   }
   
-  return root_n;
+  return first_book_n;
 }
 
 internal void
-kobo_db_print_error(SQLiteState *sqlite_state)
+kobo_db_print_error(SQLiteState *state)
 {
-  if(!(sqlite_state->errors & DBError_Null))
+  if(state->errors == DBError_Null) return;
+  printf("Errors: \n");
+  if(!(state->errors & DBError_Null))
   {
     printf("DB Error(s): \n");
   } 
-  if(!(sqlite_state->errors & DBError_Query))
+  if(!(state->errors & DBError_Query))
   {
     printf("Query failed\n" );
   }
-  if(!(sqlite_state->errors & DBError_Connexion))
+  if(!(state->errors & DBError_Connexion))
   {
     printf("Connexion failed\n" );
   }
-  if(!(sqlite_state->errors & DBError_Library))
+  if(!(state->errors & DBError_Library))
+  {
+    printf("Can't find Database DLL \n");
+  }
+  if(!(state->errors & DBError_Library))
   {
     printf("Can't find Database DLL \n");
   }

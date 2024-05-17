@@ -1,6 +1,7 @@
 #ifndef BASE_INC_H
 #define BASE_INC_H
 
+#include"base_context_cracking.h"
 #include"base_core.h"
 #include"base_types.h"
 #include"base_math.h"

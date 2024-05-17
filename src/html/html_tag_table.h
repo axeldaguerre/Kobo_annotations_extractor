@@ -15,21 +15,36 @@ enum
   HTMLTagEnclosingType_Self   = (1 << 3),
 };
 
-typedef U8 TagType;
+typedef U8 HTMLTagContentType;
 enum
 {
-    TagType_Null,
-    TagType_Empty, // TODO: useful?  
-    TagType_Inline, 
-    TagType_Block,  
-    TagType_Pre    // TODO: useful?
+    HTMLTagContentType_Null,
+    HTMLTagContentType_Phrasing,
+    HTMLTagContentType_Flow,  
+    HTMLTagContentType_Heading, 
+    HTMLTagContentType_Sectioning,  
+    HTMLTagContentType_Embedded,   
+    HTMLTagContentType_Interactive,   
+    HTMLTagContentType_Metadata,   
+    HTMLTagContentType_Document,   
+    HTMLTagContentType_Scripting,   
+};
+
+typedef U8 HTMLTagFlowContentType;
+enum
+{
+    HTMLTagFlowContentType_Null,
+    HTMLTagFlowContentType_Block,
+    HTMLTagFlowContentType_Inline,
 } ;
+
 
 typedef struct HTMLTagInvariant HTMLTagInvariant;
 struct HTMLTagInvariant
 {
   U64                      tag;
-  TagType                  tag_type;
+  HTMLTagContentType       content_type;
+  HTMLTagFlowContentType   flow_type;
   HTMLTagEnclosingType     enclosing_type;
   String8                  tag_name;
   RawMeaning               meaning;

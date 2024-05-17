@@ -1,12 +1,5 @@
-
-internal U64
-raw_hash_from_string(String8 string)
+internal B32
+raw_is_nil(RawDataNode *raw)
 {
-  // NOTE: bj2l hash function
-  U64 result = 5381;
-  for(U64 i = 0; i < string.size; i += 1)
-  {
-    result = ((result << 5) + result) + string.str[i];
-  }
-  return result;
+  return raw == 0 || raw == &raw_node_g_nil;
 }

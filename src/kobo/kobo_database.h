@@ -53,8 +53,9 @@ typedef U8 DBError;
 enum 
 {
   DBError_Null          = 0,
-  DBError_Query         = (1 << 1),
-  DBError_Connexion     = (1 << 2),
+  DBError_Query         = (1 << 0),
+  DBError_Connexion     = (1 << 1),
+  DBError_Deconnexion   = (1 << 2),
   DBError_Library       = (1 << 3),
 };
 

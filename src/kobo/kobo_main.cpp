@@ -78,14 +78,14 @@ int WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int n
   query = push_str8_cat(perm_arena, query, str8_list_join(perm_arena, cols, &join));
   query = push_str8_cat(perm_arena, query, str8_lit(" FROM Bookmark ORDER BY VolumeID COLLATE NOCASE ASC;"));
   
-  if(!sqlite_prepare_query(query, state))
+  if(sqlite_prepare_query(query, state))
   {
-    state->errors = DBError_Query;
-    return 0 ;
+    state->col_count = sqlite_column_count(state)-1;
   }
   else
   {
-    state->col_count = sqlite_column_count(state)-1;
+    state->errors = DBError_Query;
+    return 0 ;
   }
   /* 
     NOTE: All book titles are treated as a a tree, in which the root node has the book title nodes
@@ -99,43 +99,58 @@ int WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int n
           annotation's_details_node (text, date created, bookmark position, etc... = automatically created)
               
   */
-  RawDataNode *book_title_nodes = kobo_db_execute_create_raw(perm_arena, query, state);  
+  RawDataNode *book_title_nodes = kobo_db_execute_create_raw(perm_arena, query, state);
   String8 file_path_root = push_str8_cat(perm_arena, root_path, str8_lit("/"));
-  for(RawDataNode *n = book_title_nodes->first;
-      n != &raw_node_g_nil;
+  
+  for(RawDataNode *n = book_title_nodes;
+     !raw_is_nil(n);
       n = n->next)
   {
+    Temp scratch = temp_begin(perm_arena);
     String8 file_path = {0};
-    HTMLElementNode *el_n = html_element_from_raw_node(perm_arena, n); 
-    String8 output = html_str8_from_element(perm_arena, el_n, 1);
-    String8 title_content = n->raw.data;
-    if(title_content.size)
+    HTMLParserOutput parser_output = {0};
+    parser_output.indent_str = str8_lit(" ");
+    parser_output.max_text_width = 150;
+    parser_output.space_by_indent = 1;
+     
+    HTMLParser *parser = html_init_parser(scratch.arena, {0}, &parser_output);
+    String8 title = n->raw.data;    
+    // HTMLElementNode *book_title_el = html_create_element_from_tag_type(scratch.arena, HTMLTag_DIV);
+    HTMLElementNode *doc_content = html_create_root_doc(scratch.arena, title);
+    html_el_node_from_raw_node(scratch.arena, n, doc_content);
+    // HTMLElementNode *doc = html_append_to_default_doc(scratch.arena, title, book_title_el);
+    
+    String8 output = html_str8_from_element_no_check(scratch.arena, parser, doc_content->root->first);
+    if(title.size == 0)
     {
-      String8 start_after = str8_lit("mnt/onboard/");
-      U64 start = str8_find_needle(title_content, 0, start_after, StringMatchFlag_CaseInsensitive);
-      title_content.str += (start + start_after.size);
-      String8List title_path_list = str8_split_by_string_chars(perm_arena, title_content, str8_lit("<>:\"/\\|?*"), StringSplitFlag_KeepEmpties);
-      join = {0, 0, str8_lit(" ")};
-      String8 file_path_windows = str8_list_join(perm_arena, &title_path_list, &join);
-      file_path_windows = str8_chop_last_dot(file_path_windows);
-      file_path = push_str8_cat(perm_arena, file_path_root, file_path_windows);
+        state->errors |= DBError_Query;
+        break;
     }
-    else
-    {
-      file_path = push_str8_cat(perm_arena, file_path, str8_lit("unknown_title"));
-    }
-    file_path = push_str8_cat(perm_arena, file_path, str8_lit(".txt"));
+    
+    String8 start_after = str8_lit("mnt/onboard/");
+    U64 start = str8_find_needle(title, 0, start_after, StringMatchFlag_CaseInsensitive);
+    title.str += (start + start_after.size);
+    String8List title_path_list = str8_split_by_string_chars(scratch.arena, title, str8_lit("<>:\"/\\|?*"), StringSplitFlag_KeepEmpties);
+    join = {0, 0, str8_lit(" ")};
+    String8 file_path_windows = str8_list_join(scratch.arena, &title_path_list, &join);
+    file_path_windows = str8_chop_last_dot(file_path_windows);
+    file_path = push_str8_cat(scratch.arena, file_path_root, file_path_windows);
+    
+    
+    file_path = push_str8_cat(perm_arena, file_path, str8_lit(".html"));
     
     if(!os_write_data_to_file_path(perm_arena, file_path, output))
     {
       printf("failed to write in file\n");
       break;
     }
+    temp_end(scratch);
+    
   }
     
   if(!kobo_db_close(state))
   {
-    printf("Error: unable to close the db connexion\n");
+    state->errors |= DBError_Query;
   }
   os_library_close(state->lib);
   kobo_db_print_error(state);

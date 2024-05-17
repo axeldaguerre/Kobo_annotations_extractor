@@ -1,7 +1,6 @@
 #ifndef HTML_BASE_H
 #define HTML_BASE_H
 
-#define UNIQUE_TAGS HTMLTag_MAIN|HTMLTag_DOCTYPE|HTMLTag_HTML|HTMLTag_BODY|HTMLTag_FOOTER
 // TODO: better names
 typedef U32 RawTokenType;
 enum
@@ -23,38 +22,59 @@ struct HTMLToken
   Rng1U64      range;
 };
 
+typedef struct HTMLElementAttribute HTMLElementAttribute;
+struct HTMLElementAttribute
+{
+  String8 name;
+  String8 value;
+};
+
+typedef struct HTMLElementAttributeNode HTMLElementAttributeNode;
+struct HTMLElementAttributeNode
+{
+  HTMLElementAttributeNode *next;
+  HTMLElementAttribute      attribute;
+};
+
+typedef struct HTMLElementAttributeList HTMLElementAttributeList;
+struct HTMLElementAttributeList
+{
+  HTMLElementAttributeNode *first;
+  HTMLElementAttributeNode *last;
+  U64                       node_count;
+};
+
 typedef struct HTMLTag HTMLTag;
 struct HTMLTag
 {  
-  U64                  tag;
-  TagType              tag_type;
-  HTMLTagEnclosingType enclosing_type;
-  HTMLToken            first_token;
-  HTMLToken            last_token;
-  String8              tag_name;
-  RawMeaning           meaning;
+  U64                    tag;
+  HTMLTagContentType     content_type;
+  HTMLTagFlowContentType flow_type;
+  HTMLTagEnclosingType   enclosing_type;
+  HTMLToken              first_token;
+  HTMLToken              last_token;
+  String8                tag_name;
+  RawMeaning             meaning;
 };
 
 typedef struct HTMLElement HTMLElement;
 struct HTMLElement
 {
-  // TODO: Parent, last, previous ?
-  // HTMLElement *first_sub_element;
-  // HTMLElement *next_sibbling;
   HTMLTag     *tags[2];
   RawData      raw;
-  U8           level_deep;
+  HTMLElementAttributeList *attributes;
 };
 
 typedef struct HTMLElementNode HTMLElementNode;
 struct HTMLElementNode
 {
+  HTMLElementNode *root;
   HTMLElementNode *parent;
   HTMLElementNode *first;
   HTMLElementNode *last;
   HTMLElementNode *next;
-  HTMLElementNode *prev;
-  
+  HTMLElementNode *prev; 
+    
   HTMLElementNode *hash_next;
   HTMLElementNode *hash_prev;
   
@@ -81,10 +101,11 @@ struct HTMLElementList
 typedef U32 HTMLErrorType;
 enum
 {
-  HTMLErrorType_Null                 = (0),
-  
-  HTMLErrorType_unexpected_token     = (1 << 1),
-  HTMLErrorType_wrong_enclosing_type = (2 << 1),
+  HTMLErrorType_Null                 = 0,
+  HTMLErrorType_unexpected_token     = (1 << 0),
+  HTMLErrorType_wrong_enclosing_type = (1 << 1),
+  HTMLErrorType_wrong_flow_type      = (1 << 2),
+  HTMLErrorType_wrong_content_type   = (1 << 3),
 };
 
 
@@ -97,15 +118,25 @@ struct HTMLError
   U64 at;
 };
 
+typedef struct HTMLParserOutput HTMLParserOutput;
+struct HTMLParserOutput
+{
+  // String8   indent_ws;
+  String8   indent_str;
+  String8   indent_str_one;
+  U8        space_by_indent;
+  U64       max_text_width;
+};
+
 typedef struct HTMLParser HTMLParser;
 struct HTMLParser
 {
-  String8       string;
-  U64           skip_until_tag;
-  HTMLError     error;
-  U8            level_deep;
-  U8            space_by_indent;
-  U64           at;
+  String8           string;
+  U64               skip_until_tag;
+  HTMLError         error;
+  HTMLParserOutput *output;
+  U64               open_tag_count;
+  U64               at;
 };
 
 typedef struct ReadingContent ReadingContent;

@@ -50,35 +50,27 @@ struct RawData
 typedef struct RawDataNode RawDataNode;
 struct RawDataNode
 {
-  RawDataNode   *parent;    /* Tree structure*/
+  RawDataNode   *parent;    /* Tree links */
   RawDataNode   *next;  
   RawDataNode   *prev;
   RawDataNode   *first;
   RawDataNode   *last;
   
-  RawDataNode   *hash_next; /* Hash table */
-  RawDataNode   *hash_prev;
-  
   RawData        raw;
 };
 
-typedef struct RawDataSlot RawDataSlot;
-struct RawDataSlot
-{
-  RawDataNode *first;
-  RawDataNode *last;
-};
 
 // NOTE: https://www.rfleury.com/p/the-easiest-way-to-handle-errors
 read_only global RawDataNode raw_node_g_nil =
 {
+  /* Tree links */
   &raw_node_g_nil,
   &raw_node_g_nil,
   &raw_node_g_nil,
   &raw_node_g_nil,
   &raw_node_g_nil,
-  &raw_node_g_nil,
-  &raw_node_g_nil,
+  
+  0,
 };
 
 #endif

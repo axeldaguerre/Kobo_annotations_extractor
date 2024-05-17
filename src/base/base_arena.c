@@ -36,7 +36,6 @@ internal U64
 arena_pos_addr(Arena *arena)
 {
   Arena *current = arena->current;
-  AssertAlways(current != 0);
   U64 pos = current->base_pos + current->pos;
   return pos;
 }
@@ -95,19 +94,28 @@ arena_push(Arena *arena, U64 size)
   return memory;
 }
 
-internal void  
+internal void
 arena_pop_to(Arena *arena, U64 big_pos_unclamped)
 {
-  U64 big_pos = ClampBottom(big_pos_unclamped, ARENA_HEADER_SIZE);
-  Arena *current = arena->current;
+  U64 big_pos = ClampBottom(ARENA_HEADER_SIZE, big_pos_unclamped);
   
-  for(; current->base_pos >= big_pos; current = current->prev) {
+  // unroll the chain (when more than one arena in the temp)
+  Arena *current = arena->current;
+  for (Arena *prev = 0; current->base_pos >= big_pos; current = prev) {
+    prev = current->prev;
     os_release(current, current->res);
   }
-  
   AssertAlways(current);
+  arena->current = current;
+  
+  // compute arena-relative position
   U64 new_pos = big_pos - current->base_pos;
   AssertAlways(new_pos <= current->pos);
+  
+  // poison popped memory block
+  AsanPoisonMemoryRegion((U8*)current + new_pos, (current->pos - new_pos));
+  
+  // update position
   current->pos = new_pos;
 }
 
@@ -124,17 +132,17 @@ arena_clear(Arena *arena)
 {
   arena_pop_to(arena, 0);
 }
-// TODO: Temp is not working properly, data is overwritten when used in large size
+
 internal Temp
 temp_begin(Arena *arena)
-{ 
+{
   U64 pos = arena_pos_addr(arena);
-  Temp result = { arena, pos };
-  return result;
+  Temp temp = {arena, pos};
+  return temp;
 }
 
 internal void
 temp_end(Temp temp)
-{ 
+{
   arena_pop_to(temp.arena, temp.pos);
 }
