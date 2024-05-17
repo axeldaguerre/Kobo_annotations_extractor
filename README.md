@@ -19,6 +19,10 @@ If you don't add any parameter, it will print a message a small helper
 You will have to run the `build.bat` but you need msvc from Visual Studio or by using the https://github.com/Data-Oriented-House/PortableBuildTools (recommended).
 If you want to use MSVC from Visual Studio, you will need to start from the native cmd or using the `shell.bat` from this repository, tweak the path from yours inside it.
 
+## Output example 
+
+HTML output : https://github.com/axeldaguerre/Kobo_annotations_extractor/blob/main/data/exemple.html
+
 ## Tested
 
 It was tested only for Kobo Libra 2. But Any Kobo should works just fine.
